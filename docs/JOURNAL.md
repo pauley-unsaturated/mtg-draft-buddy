@@ -111,3 +111,23 @@ for free. Avoid continuous diffusion (discrete-rounding pain, no benefit at
 40-slot scale). Eval: win-rate-weighted agreement (many builds co-optimal) +
 curve/land sanity; expert builds are the reference, per the expert-signal
 directive. AR pointer decoder rejected for decks: imposes order on a set.
+
+## 2026-07-29 — Ablation ladder results (P2.T3): the skill-filter surprise
+
+Ranked by expert-subset val top-1 (owner's headline metric):
+EXP-013 no-hard-filter .7020 > EXP-014 ls0 .6994 > EXP-011 dense .6987 >
+EXP-010 recipe .6977 > EXP-012 meanpool .6976.
+Conclusions, one line each:
+- (c) HARD skill filter is a net LOSS (-0.4pt expert): soft importance weighting
+  already downweights weak drafters; the filter just burns 53% of data. Both
+  owner and agent predicted the opposite — data > purity at this scale. KEEP
+  soft weighting, DROP hard filter for the scale-up winner combo.
+- (a) pointer vs dense head: tie (dense +0.1pt, noise). Pointer retained —
+  required for Phase-3 vocab-agnostic transfer.
+- (b) set-encoder vs mean pool: tie. Set encoder retained (cheap; Phase-3
+  pack-conditioning rationale) but not a proven win at 1.3M single-set scale.
+- (d) label smoothing 0 vs 0.05: tie on accuracy; 0.05 clearly better ECE
+  (.007 vs .030). Keep 0.05.
+- (e) Premier+Trad merge: NOT RUN this session (loader change); backlog.
+EXP-020 (big, filtered) in flight; EXP-023 (big, no filter) queued after — the
+two candidates for Phase-2 best.
