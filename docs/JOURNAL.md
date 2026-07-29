@@ -96,3 +96,18 @@ drafters draft", not the average 17lands user. Changes:
 3. Pretrain zero-shot tracker selects best.pt on expert-subset week1 MSH-val.
 EXP-013 (no skill filter) expected to look competitive on overall top-1 but
 worse on expert agreement — that's the point of running it.
+
+## 2026-07-29 — Design note for P5.T1 (deckbuilder), owner discussion
+
+Mark floated diffusion; agreed direction: **masked discrete diffusion /
+MaskGIT-style iterative infilling** over the deck set — the principled version of
+the 2022 DAE (its sample-N-out corruption IS absorbing-state diffusion; its
+iterative argmax IS single-path denoising). Plan: (1) one-shot baseline first:
+set-transformer pool encoder (warm-start from draft trunk card encoder) +
+per-card maindeck head + land-count head, trained on skill-curated winning
+builds from game_data; (2) masked-infilling model with confidence-based commit
+(5-10 steps), which gives partial-deck conditioning (lock cards, complete rest)
+for free. Avoid continuous diffusion (discrete-rounding pain, no benefit at
+40-slot scale). Eval: win-rate-weighted agreement (many builds co-optimal) +
+curve/land sanity; expert builds are the reference, per the expert-signal
+directive. AR pointer decoder rejected for decks: imposes order on a set.
