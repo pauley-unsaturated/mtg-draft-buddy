@@ -36,7 +36,10 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
     else:
         feats, _ = feature_tensor(set_code, stats, ckpt_dir=None, scaler=scaler)
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
-    t = 42 if set_code == "MSH" else cfg.get("t", 42)
+    # t comes from the checkpoint itself: pos_embedding rows (minus the set-token
+    # slot if present) — sets differ (MSH t=42, EOE t=39, draft boosters 45)
+    t = state["model"]["pos_embedding.weight"].shape[0] - (
+        1 if cfg.get("use_set_token") else 0)
     model = build_model(cfg, len(cards), feats, t)
     model.load_state_dict(state["model"])
     name = f"{cfg['exp']}@{ckpt_file.stem}"
