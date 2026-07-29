@@ -21,8 +21,8 @@ class LoRAParam(nn.Module):
     def __init__(self, weight: torch.Tensor, rank: int, alpha: float):
         super().__init__()
         out_dim, in_dim = weight.shape
-        self.A = nn.Parameter(torch.randn(rank, in_dim) * 0.01)
-        self.B = nn.Parameter(torch.zeros(out_dim, rank))
+        self.A = nn.Parameter(torch.randn(rank, in_dim, device=weight.device) * 0.01)
+        self.B = nn.Parameter(torch.zeros(out_dim, rank, device=weight.device))
         self.scale = alpha / rank
 
     def forward(self, W):
