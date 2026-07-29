@@ -92,11 +92,11 @@ Goal: replace the 2017-vintage design with the modern one, ablating each change 
 - **Skill curation replaces behavioral priors as the primary lever:** train on picks with `user_win_rate ≥ 0.54 AND user_n_games ≥ 50` (keep ~top-60% of data), retain soft importance weighting (recency + skill) on top. Rare/cmc priors become config-optional, default **off**; the rare-take-rate eval metric is the watchdog instead.
 
 ### Tasks
-- [ ] **P2.T1** Implement `ModernDraftBot` behind the same `DraftModel` protocol; all P1.T4 tests pass. **DoD:** overfit canary < 3 min.
-- [ ] **P2.T2** **EXP-010** v2 at ~2M params (parity scale): same data, compare to EXP-001 on val. **DoD:** leaderboard row; if not ≥ baseline, ablate fusion/pointer/set-encoder individually before proceeding.
-- [ ] **P2.T3** Ablation ladder (one EXP each, val-only, ≤ 2h/run): (a) pointer head vs dense head; (b) set-encoder vs mean pool; (c) skill filter vs priors-on; (d) label smoothing 0 / 0.05 / 0.1; (e) Premier+Trad merged with event-type flag. Keep winners. **DoD:** each ablation is a leaderboard row with a one-line conclusion in the journal.
-- [ ] **P2.T4** Scale on MSH only: emb 256, 6 layers, 8 heads (~15–20M params). Watch val for overfit; if data-limited, stop scaling — that's the signal Phase 3 is where growth must come from. **DoD:** best-MSH-only model declared (**EXP-02x**), test-gate scorecard frozen.
-- [ ] **P2.T5** Behavioral fixture pass: v2 best must pass the full easy+medium tiers of P1.T3. Failures become journal analysis (and possibly new training-data curation ideas), not fixture edits.
+- [x] **P2.T1** Implement `ModernDraftBot` behind the same `DraftModel` protocol; all P1.T4 tests pass. **DoD:** overfit canary < 3 min.
+- [x] **P2.T2** **EXP-010** v2 at ~2M params (parity scale): same data, compare to EXP-001 on val. **DoD:** leaderboard row; if not ≥ baseline, ablate fusion/pointer/set-encoder individually before proceeding.
+- [x] **P2.T3** Ablation ladder (one EXP each, val-only, ≤ 2h/run): (a) pointer head vs dense head; (b) set-encoder vs mean pool; (c) skill filter vs priors-on; (d) label smoothing 0 / 0.05 / 0.1; (e) Premier+Trad merged with event-type flag. Keep winners. **DoD:** each ablation is a leaderboard row with a one-line conclusion in the journal.
+- [x] **P2.T4** Scale on MSH only: emb 256, 6 layers, 8 heads (~15–20M params). Watch val for overfit; if data-limited, stop scaling — that's the signal Phase 3 is where growth must come from. **DoD:** best-MSH-only model declared (**EXP-02x**), test-gate scorecard frozen.
+- [x] **P2.T5** Behavioral fixture pass: v2 best must pass the full easy+medium tiers of P1.T3. Failures become journal analysis (and possibly new training-data curation ideas), not fixture edits.
 
 **Phase 2 gate:** v2-best beats EXP-001 by ≥ 2 points test top-1 AND passes fixtures ≥ baseline AND rare-take-rate within 1.5× of human expert rate. Freeze scorecards in `docs/scorecards/phase2/`.
 

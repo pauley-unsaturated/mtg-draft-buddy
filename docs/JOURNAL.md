@@ -131,3 +131,15 @@ Conclusions, one line each:
 - (e) Premier+Trad merge: NOT RUN this session (loader change); backlog.
 EXP-020 (big, filtered) in flight; EXP-023 (big, no filter) queued after — the
 two candidates for Phase-2 best.
+
+## 2026-07-29 — PHASE 2 GATE PASSED; EXP-013 declared Phase-2 best
+
+Test gate (run once, frozen in docs/scorecards/phase2/): EXP-013 test top-1
+.6756 / expert .6985 — beats EXP-001 (.5736) by +10.2 (gate: ≥2) ✓; fixtures
+21/21 ✓; rare-take 1.08× expert (≤1.5×) ✓; coherence 2.06 (human 2.16).
+EXP-020 (8.5M filtered) .6902 expert and EXP-023 (8.5M unfiltered) .6962 expert
+both UNDER the 1.3M EXP-013 → single-set MSH is data-limited; growth must come
+from pretraining (the plan's predicted signal — P2.T4 conclusion).
+Deliverable #1 for Mark = checkpoints/EXP-013 (demo: --models checkpoints/EXP-013).
+Note: ceiling analysis (calibrated-confidence proxy) puts expert-agreement
+ceiling in low-to-mid .70s; EXP-013 at .6985 is within ~2-4pts.
