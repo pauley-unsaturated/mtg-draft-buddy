@@ -192,3 +192,14 @@ Mark per §0. MSH stays quarantined until he rules. Both deliverables exist and
 are demo-ready: EXP-013 (single-set best) and EXP-031 (pretrained→fine-tuned;
 EXP-032 equivalent). Zero-shot results unaffected — those passed with +27pt
 margins.
+
+## 2026-07-29 — OWNER RULING: Phase-3 gate PASSED (tie accepted)
+
+Mark ruled the condition-3 statistical tie acceptable ("good enough to move past
+Phase 3"). Per the gate's on-pass protocol: MSH exits quarantine and joins the
+corpus (configs/corpus/pretrain_v2.yaml — v1 frozen for EXP-030 provenance);
+the NEXT Arena release becomes the new sandbag (code TBD at announcement —
+update pretrain_v2 quarantine + PLAN §0 when known). P3.T5 (zero-shot
+hill-climb) and P3.T6 (few-shot curves) deferred by owner in favor of Phase 4;
+they remain unchecked in the plan and can be resumed any time. Committing and
+pushing all session work before starting Phase 4.
