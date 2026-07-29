@@ -33,3 +33,13 @@ week-1 "day-7 knowledge" snapshots *more* honest than the API ever was. The two
 API-fetched snapshot files (null win rates, useless) were deleted and rebuilt via
 `features.build_snapshot`; on-disk contract unchanged. Note for future sets:
 game_data must be fetched alongside draft_data (fetch.py now takes kind="game").
+
+## 2026-07-28 — Phase 0 complete
+
+All P0 tasks done, 12 tests green. MSH: 68,609 complete drafts / 2,881,578 picks,
+t=42, vocab 339 (281 msh + 58 mar), Premier parquet 231MB. Snapshots computed from
+raw data: full (2026-06-26→2026-07-28) and week1 (→2026-07-03); 576-col API shape
+replaced by 356 computed columns (draft-stage stats unsuffixed once, game-stage
+×32 filters). Expert subset auto-relaxed to WR≥0.58/≥50 games; low-skill
+WR≤0.50/≥50 games (both ≥50k test picks). `make data SET=<code>` is the
+one-command pipeline. 24 incomplete drafts dropped (Premier), 1 (Trad).
