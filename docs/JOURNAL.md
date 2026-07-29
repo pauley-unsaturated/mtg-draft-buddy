@@ -259,3 +259,16 @@ renders live rich table: rank/name(rarity-tinted)/calibrated-prob bar/GIH/ALSA,
 pool pips, model-disagreement flag in the title. Verified over a full 42-pick
 replay with EXP-033. Awaiting Mark's captured real Player.log (Detailed Logs
 on) to harden fixtures; H3 window UI awaits the design-brief round-trip.
+
+## 2026-07-29 — HUD H3: window UI implemented from the Claude Design spec
+
+Mark supplied a Claude Design doc (extracted from artifact bundle; tokens +
+5 states + hierarchy spec). Implemented faithfully in hud/panel.html:
+dark instrument theme (#08090A/#101216, oklch confidence cyan / split violet /
+rarity golds), 56px hero row with 3px rail + fill-bar-as-probability, rows 2-3
+at 60% scale with ALT #1 chip, sub-3% tail collapse, day-0 banner, idle/error
+states, 220ms packIn only. hud/server.py: stdlib HTTP bridge (/, /state,
+/art/<id> with Scryfall art_crop disk cache); __main__ --ui window opens
+pywebview (if installed) else browser. Verified end-to-end: full replay into
+the panel — state JSON, HTML 200, art fetch+cache 200. Remaining: H4 polish
+(bot drafts, auto-onboard unknown sets), real captured Player.log from Mark.
