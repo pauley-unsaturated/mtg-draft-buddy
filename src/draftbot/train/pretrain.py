@@ -49,6 +49,10 @@ class ZeroShotEval:
         splits = load_splits("MSH")
         from draftbot.data.dataset import load_draft_arrays
         self.arr = load_draft_arrays("MSH", draft_ids=set(splits["random"]["val"]))
+        es = splits["expert_subset"]
+        m = self.arr.meta
+        self.expert_mask = ((m["user_win_rate"].fillna(0) >= es["min_win_rate"])
+                            & (m["user_n_games"] >= es["min_games"])).to_numpy()
         self.tables = {}
         for mode in ("none", "week1", "full"):
             feats, _ = assemble("MSH", None if mode == "none" else mode,
@@ -62,20 +66,20 @@ class ZeroShotEval:
 
     @torch.no_grad()
     def top1(self, model: ModernDraftBot, mode: str, device,
-             batch: int = 512) -> float:
+             batch: int = 512) -> tuple[float, float]:
+        """(overall, expert-subset) MSH-val top-1; expert drives best.pt."""
         model.eval()
         model.embedding.set_context(self.tables[mode])
-        hits_sum = n = 0
+        rows = []
         for i in range(0, self.arr.n_drafts, batch):
             p = torch.from_numpy(self.arr.packs[i:i + batch].astype(np.int64)).to(device)
             pp = torch.from_numpy(self.arr.prev_picks[i:i + batch].astype(np.int64)).to(device)
             scores = model(p, pp).float().cpu().numpy()
-            h = topk_hits(self.arr.packs[i:i + batch], self.arr.picks[i:i + batch],
-                          scores, kmax=1)
-            hits_sum += h[0].sum()
-            n += h[0].size
+            rows.append(topk_hits(self.arr.packs[i:i + batch],
+                                  self.arr.picks[i:i + batch], scores, kmax=1)[0])
         model.train()
-        return float(hits_sum / n)
+        hits = np.concatenate(rows)
+        return float(hits.mean()), float(hits[self.expert_mask].mean())
 
 
 def main(argv=None):
@@ -163,14 +167,15 @@ def main(argv=None):
         if step % eval_every == 0 or step == total_steps:
             zs = {m: zse.top1(model, m, device) for m in ("none", "week1", "full")}
             mins = (time.time() - start) / 60
-            print(f"step {step}/{total_steps} loss {float(loss.detach()):.4f} "
-                  f"zs none {zs['none']:.4f} week1 {zs['week1']:.4f} "
-                  f"full {zs['full']:.4f} ({mins:.1f} min)", flush=True)
-            for m, v in zs.items():
-                writer.add_scalar(f"zeroshot_msh_val/{m}", v, step)
+            print(f"step {step}/{total_steps} loss {float(loss.detach()):.4f} zs "
+                  + " ".join(f"{m} {o:.4f}/exp {e:.4f}" for m, (o, e) in zs.items())
+                  + f" ({mins:.1f} min)", flush=True)
+            for m, (o, e) in zs.items():
+                writer.add_scalar(f"zeroshot_msh_val/{m}", o, step)
+                writer.add_scalar(f"zeroshot_msh_val/{m}_expert", e, step)
             save(ckpt_dir / "last.pt")
-            if zs["week1"] > best_zs:
-                best_zs = zs["week1"]
+            if zs["week1"][1] > best_zs:  # expert-subset week1 selects best.pt
+                best_zs = zs["week1"][1]
                 save(ckpt_dir / "best.pt")
     writer.close()
     print(f"done: best zero-shot(week1) MSH val top-1 = {best_zs:.4f}")

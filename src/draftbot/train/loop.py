@@ -104,6 +104,12 @@ class Trainer:
         self.train_arr = load_draft_arrays(set_code, draft_ids=set(splits[scheme]["train"]))
         self.val_arr = load_draft_arrays(set_code, draft_ids=set(splits[scheme]["val"]))
         self.t = self.train_arr.t
+        # Owner directive (journal 2026-07-29): select models on agreement with
+        # GOOD drafters — early stop tracks expert-subset val top-1.
+        es = splits["expert_subset"]
+        vm = self.val_arr.meta
+        self.val_expert_mask = ((vm["user_win_rate"].fillna(0) >= es["min_win_rate"])
+                                & (vm["user_n_games"] >= es["min_games"])).to_numpy()
 
         md = cfg.get("max_drafts")
         if md and md < self.train_arr.n_drafts:
@@ -222,12 +228,13 @@ class Trainer:
                          cfg.get("peak_lr", 3e-4))
 
     # ----------------------------------------------------------------- train ---
-    def val_top1(self) -> float:
+    def val_top1(self) -> tuple[float, float]:
+        """(overall, expert-subset) val top-1; selection uses the expert number."""
         scorer = TorchScorer(self.model, self.exp, self.device)
         scores = scorer.score_drafts(self.val_arr.packs, self.val_arr.prev_picks)
         hits = topk_hits(self.val_arr.packs, self.val_arr.picks, scores, kmax=1)
         self.model.train()
-        return float(hits[0].mean())
+        return float(hits[0].mean()), float(hits[0][self.val_expert_mask].mean())
 
     def train(self):
         cfg = self.cfg
@@ -271,11 +278,13 @@ class Trainer:
                     self.writer.add_scalar("train/loss", float(loss), self.step)
                     self.writer.add_scalar("train/lr", lr, self.step)
             self.epoch += 1
-            val = self.val_top1()
-            self.writer.add_scalar("val/top1", val, self.step)
+            val_overall, val = self.val_top1()  # `val` (expert) drives selection
+            self.writer.add_scalar("val/top1", val_overall, self.step)
+            self.writer.add_scalar("val/expert_top1", val, self.step)
             mins = (time.time() - start) / 60
             print(f"epoch {self.epoch}/{epochs} loss {epoch_loss / max(n_batches,1):.4f} "
-                  f"val_top1 {val:.4f} ({mins:.1f} min)", flush=True)
+                  f"val_top1 {val_overall:.4f} expert {val:.4f} ({mins:.1f} min)",
+                  flush=True)
             improved = val > self.best_val
             if improved:
                 self.best_val = val

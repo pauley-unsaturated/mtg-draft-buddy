@@ -83,3 +83,16 @@ drafts (46%). Ablation chain EXP-011..014 + EXP-020 scale-up running.
 Corpus: all 29 non-MSH sets downloaded (6.7GB); onboarding in progress —
 MKM needed PLST (The List) companion sheet, registry extended, politeness sleeps
 raised after Scryfall 429s.
+
+## 2026-07-29 — Owner directive: expert agreement is THE signal
+
+Mark (citing Ryan Saxe's original intent): the target signal is "what good
+drafters draft", not the average 17lands user. Changes:
+1. Leaderboard ranking + Phase-2/3 winner declarations use expert-subset top-1
+   (evaluation-side; uniform across all runs, past and future).
+2. Early stopping / best-checkpoint selection now tracks expert-subset val
+   top-1 (train/loop.py) — applies from EXP-014 onward; EXP-010..013 selected on
+   overall val top-1 (metrics move together; scorecard comparison unaffected).
+3. Pretrain zero-shot tracker selects best.pt on expert-subset week1 MSH-val.
+EXP-013 (no skill filter) expected to look competitive on overall top-1 but
+worse on expert agreement — that's the point of running it.
