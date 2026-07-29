@@ -203,3 +203,15 @@ update pretrain_v2 quarantine + PLAN §0 when known). P3.T5 (zero-shot
 hill-climb) and P3.T6 (few-shot curves) deferred by owner in favor of Phase 4;
 they remain unchecked in the plan and can be resumed any time. Committing and
 pushing all session work before starting Phase 4.
+
+## 2026-07-29 — P5.T4 promoted: real-time draft HUD plan (owner request)
+
+Mark wants a HUD app running alongside Arena. Mechanism verified from
+rconroy293/mtga-log-client source: tail ~/Library/Logs/Wizards Of The
+Coast/MTGA/Player.log (Detailed Logs setting required), parse
+Draft.Notify/LogBusiness/EventPlayerDraftMakePick JSON events; card ids are
+Arena grpIds == Scryfall arena_id (375/375 coverage in our MSH cache → pure
+lookup into cards.parquet). Full plan in docs/HUD_PLAN.md: LogFollower →
+DraftState → Advisor (existing TorchScorer, calibrated probs) → rich-TUI v0
+then pywebview panel with Scryfall art. Milestones H1-H5; H1 needs a captured
+real draft log (Mark: enable Detailed Logs + save Player.log after next draft).
