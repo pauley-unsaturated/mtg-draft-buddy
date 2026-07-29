@@ -95,6 +95,8 @@ def importance_weights(meta_rank: np.ndarray, user_win_rate: np.ndarray,
     won = np.divide(event_wins, np.maximum(total, 1),
                     out=np.zeros_like(event_wins, dtype=float), where=total > 0)
     won = np.clip(won, 0.5, 1.0)
+    if len(draft_time) == 0:
+        return np.zeros((0, t))
     dt = draft_time.astype("datetime64[D]")
     n_weeks = ((dt.max() - dt).astype(int)) // 7
     recency = 0.9 ** n_weeks
