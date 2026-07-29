@@ -60,3 +60,14 @@ colors vs human 2.16 (slightly over-committed); pack-1 positions 0-3 weakest
 early-pick accuracy. Behavioral fixtures: 21 scenarios (10 easy all pass for
 gih-greedy; medium/hard reserved for trained models). Analysis per position shows
 P1P1 .57 rising to ~.60+ late-pack (wheel picks easier).
+
+## 2026-07-28 — EXP-001 pathology: priors + basics-in-vocab = P1P1 basic-taking
+
+The demo CLI surfaced it; quantified on val: EXP-001 top-1 is a basic land in
+24.9% of P1P1s (humans: 0.0%), 18.2% vs human 6.9% when a pack contains a basic.
+Cause: the legacy cmc prior (hinge toward cheap picks) + rare prior both point at
+basics (cmc 0, never rare) under uncertainty; the 2022 original excluded basics
+from the vocab so this couldn't happen. Kept as-is for baseline fidelity —
+EXP-001 is the reproduction, priors on. Phase-2 v2 (priors off, skill curation)
+must clear the easy-no-basic-over-playable fixture EXP-001 fails. Watchdog for
+this now exists in the demo + this probe.
