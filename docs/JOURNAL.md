@@ -143,3 +143,15 @@ from pretraining (the plan's predicted signal — P2.T4 conclusion).
 Deliverable #1 for Mark = checkpoints/EXP-013 (demo: --models checkpoints/EXP-013).
 Note: ceiling analysis (calibrated-confidence proxy) puts expert-agreement
 ceiling in low-to-mid .70s; EXP-013 at .6985 is within ~2-4pts.
+
+## 2026-07-29 — P3.T3 warm-start pilot: transfer VERDICT POSITIVE
+
+EXP-021 (v2 on EOE, 42.3k skill-filtered drafts): EOE expert val .7040. EOE
+quirk found: t=39 (13-pick packs); loading.py now infers t from checkpoint.
+EXP-022 (EOE trunk → MSH fine-tune, 11 epochs, EOE scaler): MSH expert val
+.6995 vs EXP-010 from-scratch .6977 at equal epochs — modest final gain, much
+faster convergence (epoch 1: .6895 vs .6423 overall). Feature pathway confirmed
+working cross-set → proceed to EXP-030 corpus pretrain (queued).
+Also fixed this session: 4/4.07M EOE picks were 17lands glitch rows (pick not
+in pack) inflating printed loss ×600 via the -1e9 mask; loader now drops such
+drafts globally. Val metrics were never affected.
