@@ -1,0 +1,22 @@
+# EXP-030: pretrain-small (PLAN P3.T4). Feature-only trunk + set token,
+# stat-dropout 0.25, corpus = pretrain_v1 minus quarantine. Zero-shot MSH val
+# is the tracked signal (week1 mode selects best.pt).
+exp: EXP-030
+corpus: configs/corpus/pretrain_v1.yaml
+seed: 17
+batch_drafts: 64
+total_steps: 20000
+emb_dim: 256
+layers: 8
+heads: 8
+dropout: 0.1
+stat_dropout: 0.25
+label_smoothing: 0.05
+skill_filter:
+  min_win_rate: 0.54
+  min_games: 50
+peak_lr: 2.0e-4
+lr_warmup: 1000
+weight_decay: 0.01
+grad_clip: 1.0
+eval_every: 1000
