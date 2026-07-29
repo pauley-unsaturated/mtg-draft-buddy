@@ -139,7 +139,7 @@ Goal: make "new set support" a one-command, one-hour operation, and verify param
 - [x] **P4.T1** LoRA implementation (attention qkv/o + FFN, rank 8–32) plus always-full-rank per-set card-embedding table and pointer projection. Config-switchable: full-FT vs LoRA vs head-only. **DoD:** LoRA run touches < 5% of params; checkpoint stores adapter separately from base.
 - [x] **P4.T2** Equivalence study on the (now unquarantined) MSH: full-FT vs LoRA vs head-only at 3 data budgets. **DoD:** leaderboard rows; decision recorded (expected: LoRA ≈ full-FT; if not, prefer full-FT — it's cheap at this scale and the base is reusable either way).
 - [x] **P4.T3** `draftbot onboard-set <CODE>` — end-to-end: probe data, build cards/features/snapshots/splits/data card, evaluate zero-shot, fine-tune adapter when data exists, emit scorecard. **DoD:** dry-run on an existing set from scratch completes unattended.
-- [ ] **P4.T4** Continual-pretrain refresh recipe: how/when the base model absorbs newly unquarantined sets (scheduled full pretrain rerun, not incremental training, to avoid drift). **DoD:** documented in this file + one executed refresh.
+- [x] **P4.T4** Continual-pretrain refresh recipe: how/when the base model absorbs newly unquarantined sets (scheduled full pretrain rerun, not incremental training, to avoid drift). **DoD:** documented in this file + one executed refresh.
 
 **Phase 4 gate:** onboarding a set = one command; adapter-vs-full decision documented with data.
 

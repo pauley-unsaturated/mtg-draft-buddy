@@ -233,3 +233,15 @@ reaches ~.69 expert in every mode — this table doubles as the P3.T6 evidence
 at 3 budgets. LoRA device-placement + parametrized-checkpoint loading bugs
 fixed along the way (params must be created on the base weight's device;
 loader re-applies LoRA structure before load_state_dict).
+
+## 2026-07-29 — PHASE 4 GATE PASSED
+
+P4.T3 dry-run: `python -m draftbot.onboard_set --set KTK --budget-drafts 3000
+--epochs 3` ran unattended: pipeline skip-detection → zero-shot scorecards
+(KTK val .6475/.6719exp from the EXP-030 base) → LoRA adapter (0.32M trainable,
+42s) → .6503/.6729exp scorecard. P4.T4 executed refresh: EXP-033 on corpus v2
+(30 sets incl. MSH): MSH week1 .6852exp / full .6962exp — beats the v1 trunk on
+every mode (recipe gate ✓); EXP-033 is now the recommended --base for future
+onboard-set runs. Phase-4 gate: one-command onboarding ✓, adapter decision
+documented with data ✓. Remaining open plan work: P3.T5/T6 (owner-deferred),
+Phase 5 (deckbuilder implementation, HUD H1-H5 per docs/HUD_PLAN.md).
