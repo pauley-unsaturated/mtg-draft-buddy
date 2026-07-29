@@ -1,0 +1,54 @@
+{
+ "name": "medium-fixing-for-splash",
+ "tier": "medium",
+ "position": 25,
+ "pack": [
+  "Avengers Tower",
+  "Kree Commandos",
+  "Super Suit",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Project Deathlok Soldier",
+  "Hire a Crew",
+  "Super Speed",
+  "Super Strength",
+  "Powerful Broker",
+  "Call Damage Control",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids"
+ ],
+ "pool": [
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "The Super Hero Civil War"
+ ],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "Avengers Tower"
+  ]
+ },
+ "rationale": "Pool has a splashy off-color bomb: the fixing land (GIH 0.60, ALSA 4.5) should rank top-2 over replacement-level spells."
+}

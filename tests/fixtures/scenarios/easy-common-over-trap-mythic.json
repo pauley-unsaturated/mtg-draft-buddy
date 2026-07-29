@@ -1,0 +1,29 @@
+{
+ "name": "easy-common-over-trap-mythic",
+ "tier": "easy",
+ "position": 0,
+ "pack": [
+  "Hero in Training",
+  "Horn of Greed",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Hire a Crew",
+  "Super Speed",
+  "Super Strength",
+  "Powerful Broker",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids"
+ ],
+ "pool": [],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Hero in Training"
+  ]
+ },
+ "rationale": "Horn of Greed is a trap mythic (GIH 0.22); the premium common is right. rarity-first fails this by design."
+}

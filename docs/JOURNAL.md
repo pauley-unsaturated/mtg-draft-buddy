@@ -43,3 +43,20 @@ replaced by 356 computed columns (draft-stage stats unsuffixed once, game-stage
 ×32 filters). Expert subset auto-relaxed to WR≥0.58/≥50 games; low-skill
 WR≤0.50/≥50 games (both ≥50k test picks). `make data SET=<code>` is the
 one-command pipeline. 24 incomplete drafts dropped (Premier), 1 (Trad).
+
+## 2026-07-28 — Phase 1 complete: eval suite + EXP-001 baseline
+
+Heuristic floor (MSH test, full stats): random .232 / rarity-first .327 /
+gih-greedy .379 / gih-in-lane .424 / alsa-greedy .467 top-1. Skill-gap metric
+behaves as designed: gih bots agree with experts >> low-skill (+.06), rarity-first
+gap NEGATIVE (-.007) — the metric catches bad-drafter mimicry.
+
+EXP-001 (legacy port, 1.68M params, 6 epochs / 2.7 min on MPS): val .576, test
+.574 top-1 (beats every baseline; +19.5 over gih-greedy, +10.6 over alsa-greedy).
+Expert top-1 .598, skill-gap +.039 (well above gih-greedy bar). ECE .034.
+Weak spots for Phase 2: rare-take 0.38× expert (the λ=10 anti-rare prior
+overshoots — v2 drops priors for skill curation + watchdog); pool coherence 1.81
+colors vs human 2.16 (slightly over-committed); pack-1 positions 0-3 weakest
+early-pick accuracy. Behavioral fixtures: 21 scenarios (10 easy all pass for
+gih-greedy; medium/hard reserved for trained models). Analysis per position shows
+P1P1 .57 rising to ~.60+ late-pack (wheel picks easier).

@@ -1,0 +1,60 @@
+{
+ "name": "medium-stay-in-lane-p3",
+ "tier": "medium",
+ "position": 30,
+ "pack": [
+  "Trickster's Stratagem",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Super Strength",
+  "Powerful Broker",
+  "Call Damage Control",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone",
+  "Dependable Quinjet"
+ ],
+ "pool": [
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative"
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Lightning Strike",
+   "HULK SMASH!"
+  ]
+ },
+ "rationale": "P3 with a committed BR pool: on-color removal over a slightly higher-GIH off-color common. Pure GIH-greedy fails; pool context wins."
+}

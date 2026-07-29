@@ -1,0 +1,30 @@
+{
+ "name": "hard-speculative-p1p1-flexibility",
+ "tier": "hard",
+ "position": 0,
+ "pack": [
+  "Jennifer Walters",
+  "Trickster's Stratagem",
+  "Undercover Skrull",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Hire a Crew",
+  "Super Speed",
+  "Super Strength",
+  "Powerful Broker",
+  "Vibranium Energy Daggers"
+ ],
+ "pool": [],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "Jennifer Walters",
+   "Trickster's Stratagem"
+  ]
+ },
+ "rationale": "Close P1P1 between a strong mythic and the best common; either is defensible, model should have both in top-2."
+}

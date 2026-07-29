@@ -1,0 +1,36 @@
+{
+ "name": "hard-pivot-signal",
+ "tier": "hard",
+ "position": 8,
+ "pack": [
+  "Leader, Super-Genius",
+  "Murdock's Crusade",
+  "Widow's Bite",
+  "Super Strength",
+  "Powerful Broker",
+  "Call Damage Control",
+  "Hire a Crew",
+  "Super Speed",
+  "Volcanic Villain",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone"
+ ],
+ "pool": [
+  "Hero in Training",
+  "Web Up",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Agents of S.H.I.E.L.D."
+ ],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "Leader, Super-Genius"
+  ]
+ },
+ "rationale": "P1P9: a late rare this strong is a signal U is open; pivoting beats doubling down on a weak W start."
+}

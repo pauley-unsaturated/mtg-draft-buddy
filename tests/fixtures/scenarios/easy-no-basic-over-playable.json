@@ -1,0 +1,59 @@
+{
+ "name": "easy-no-basic-over-playable",
+ "tier": "easy",
+ "position": 30,
+ "pack": [
+  "Plains",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Project Deathlok Soldier",
+  "Hire a Crew",
+  "Super Speed",
+  "Volcanic Villain"
+ ],
+ "pool": [
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D."
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Hero in Training",
+   "Murdock's Crusade"
+  ]
+ },
+ "rationale": "Never take a basic land over on-color playables (play boosters put basics in packs; 3.4% of human picks are basics but not over playables)."
+}

@@ -1,0 +1,30 @@
+{
+ "name": "medium-late-wheel-playable",
+ "tier": "medium",
+ "position": 11,
+ "pack": [
+  "Widow's Bite",
+  "Super Speed",
+  "Vibranium Energy Daggers"
+ ],
+ "pool": [
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Project Deathlok Soldier",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Doctor Doom",
+  "Cruel Alliance"
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Widow's Bite"
+  ]
+ },
+ "rationale": "P1P12 wheel, mono-B leaning pool: the on-color playable over chaff."
+}
