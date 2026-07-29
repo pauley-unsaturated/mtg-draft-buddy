@@ -174,3 +174,23 @@ Goal: make "new set support" a one-command, one-hour operation, and verify param
 - Distillation of the big pretrained model into a ≤5M-param on-device model for the live overlay.
 - Rating-free stat features derived from raw game_data (compute GIH-WR ourselves with date cutoffs) — removes dependence on the ratings API and enables arbitrary-date snapshots for any set.
 - Human-disagreement ceiling study: estimate top-1 noise floor from duplicate pack states across drafts, to contextualize plateaus.
+
+## Appendix D — Continual-pretrain refresh recipe (P4.T4, executed 2026-07-29)
+
+When a sandbagged set passes its gate and joins the corpus (or ~quarterly
+otherwise), refresh the base trunk by a FULL pretrain rerun — never incremental
+training on top of the old trunk (drift + scaler staleness):
+1. New corpus manifest `configs/corpus/pretrain_vN.yaml` (previous one frozen —
+   it documents what the old trunk trained under). Newly promoted set gets
+   play-booster weight 2.0; new sandbag in `quarantine` from announcement day.
+2. `uv run python -m draftbot.data.onboard --corpus configs/corpus/pretrain_vN.yaml --parallel 5`
+   for any not-yet-processed sets.
+3. New EXP: `python -m draftbot.train.pretrain --config configs/EXP-0NN.yaml`
+   (corpus: vN). Scaler refits over the vN corpus automatically; zero-shot
+   tracking runs against the CURRENT sandbag once it has val data (until then,
+   the most recent promoted set is the tracking proxy).
+4. Gate: new trunk's zero-shot on the tracking set must be ≥ old trunk's, and a
+   spot fine-tune must be ≥ the old trunk's. Then repoint `--base` defaults /
+   onboard-set to the new trunk directory.
+Executed refresh: EXP-033 = pretrain on pretrain_v2 (MSH in-corpus), tracking
+proxy MSH (its val is no longer quarantined — it is corpus now).
