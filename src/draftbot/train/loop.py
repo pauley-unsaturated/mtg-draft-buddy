@@ -154,6 +154,15 @@ class Trainer:
             self.model.load_state_dict(loadable, strict=False)
             print(f"init_from {src_file}: {len(loadable)} tensors loaded, "
                   f"skipped {skipped}")
+
+        self.ft_mode = cfg.get("finetune_mode", "full")
+        if self.ft_mode != "full":
+            from draftbot.models.lora import apply_finetune_mode
+            stats = apply_finetune_mode(self.model, self.ft_mode,
+                                        rank=cfg.get("lora_rank", 4),
+                                        alpha=cfg.get("lora_alpha", 16.0))
+            print(f"finetune_mode={self.ft_mode}: {stats['trainable']:,} of "
+                  f"{stats['total']:,} params trainable ({stats['frac']:.2%})")
         n_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(f"{self.exp}: {n_params / 1e6:.2f}M params on {self.device}")
 
@@ -171,13 +180,14 @@ class Trainer:
             w = np.ones((self.train_arr.n_drafts, self.t))
         self.weights = w.astype(np.float32)
 
+        trainable = [p for p in self.model.parameters() if p.requires_grad]
         self.opt_kind = "adamw" if cfg.get("model") == "modern" else "adam"
         if self.opt_kind == "adamw":
-            self.optim = torch.optim.AdamW(self.model.parameters(), lr=1.0,
+            self.optim = torch.optim.AdamW(trainable, lr=1.0,
                                            betas=(0.9, 0.98), eps=1e-9,
                                            weight_decay=cfg.get("weight_decay", 0.01))
         else:
-            self.optim = torch.optim.Adam(self.model.parameters(), lr=1.0,
+            self.optim = torch.optim.Adam(trainable, lr=1.0,
                                           betas=(0.9, 0.98), eps=1e-9)
         self.step = 0
         self.epoch = 0
@@ -294,6 +304,10 @@ class Trainer:
             self._save(self.dir / "last.pt")
             if improved:
                 self._save(self.dir / "best.pt")
+                if self.ft_mode != "full":  # adapter checkpoint (PLAN P4.T1)
+                    from draftbot.models.lora import adapter_state
+                    torch.save({"adapter": adapter_state(self.model),
+                                "cfg": self.cfg}, self.dir / "adapter.pt")
             elif self.bad_epochs >= cfg.get("patience", 3):
                 print(f"early stop at epoch {self.epoch} (best {self.best_val:.4f})")
                 break
