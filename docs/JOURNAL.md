@@ -155,3 +155,15 @@ working cross-set → proceed to EXP-030 corpus pretrain (queued).
 Also fixed this session: 4/4.07M EOE picks were 17lands glitch rows (pick not
 in pack) inflating printed loss ×600 via the -1e9 mask; loader now drops such
 drafts globally. Val metrics were never affected.
+
+## 2026-07-29 — EXP-030 pretrain complete: zero-shot MSH is REAL
+
+7.7M feature-only trunk + set token, 29 sets (2021 quartet kept via
+no-skill-metadata fallback), stat-dropout 0.25, 20k steps / 98 min.
+Zero-shot MSH val (never trained on MSH): none .5304/.5257exp,
+week1 .6514/.6719exp, full .6587/.6845exp.
+P3.T4 sanity bars demolished: zs(week1) vs ALSA-greedy +19pts; zs(none) vs
+rarity-first +20pts. Phase-3 gate conditions 1-2 comfortably met on val
+(GIH-greedy(week1) val = .3804/.4198exp; margin +27pts; gap to Phase-2 best
+2.7pts < 6). Day-0 mode .53 = better than any stats-armed heuristic bot.
+EXP-031 fine-tune launching via chain.
