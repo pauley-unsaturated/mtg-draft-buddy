@@ -24,7 +24,17 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
 
     from draftbot.train.loop import build_model, feature_tensor
     scaler = load_scaler(ckpt_dir / "scaler.json")
-    feats, _ = feature_tensor(set_code, stats, ckpt_dir=None, scaler=scaler)
+    has_stat_cols = any(c.endswith("__miss") for c in scaler)
+    if stats == "none" and has_stat_cols:
+        # stat-trained model in day-0 mode: full-width table, stats zeroed, masks on
+        from draftbot.data.corpus import _statless, add_bias_row
+        from draftbot.data.features import assemble
+        feats_df, _ = assemble(set_code, "full", scaler=scaler)
+        feats = torch.tensor(add_bias_row(_statless(feats_df)))
+    elif stats != "none" and not has_stat_cols:
+        raise SystemExit("model was trained without stats; use --stats-snapshot none")
+    else:
+        feats, _ = feature_tensor(set_code, stats, ckpt_dir=None, scaler=scaler)
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     t = 42 if set_code == "MSH" else cfg.get("t", 42)
     model = build_model(cfg, len(cards), feats, t)
