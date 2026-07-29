@@ -22,3 +22,7 @@ Primary metric: top-1 on MSH test; headline: expert-subset top-1.
 | EXP-020 | EXP-020@best | MSH | test | full | 0.6671 | 0.9364 | 0.6902 | +0.0400 | 0.8789 | configs/EXP-020.yaml | 0f5159f | 17min | 2026-07-29 |
 | EXP-023 | EXP-023@best | MSH | test | full | 0.6742 | 0.9409 | 0.6962 | +0.0366 | 0.8595 | configs/EXP-023.yaml | 0f5159f | 38min | 2026-07-29 |
 | EXP-022 | EXP-022@best | MSH | val | full | 0.6741 | 0.9411 | 0.6995 | +0.0402 | 0.8554 | configs/EXP-022.yaml | 8abd93f | 10min | 2026-07-29 |
+| — | gih-greedy | MSH | test | week1 | 0.3793 | 0.7177 | 0.4174 | +0.0637 | 1.7844 | baseline | 634c503 | <1min | 2026-07-29 |
+| EXP-030 | EXP-030-zeroshot@best | MSH | test | week1 | 0.6486 | 0.9265 | 0.6696 | +0.0358 | 0.9324 | configs/EXP-030.yaml | 634c503 | 98min | 2026-07-29 |
+| EXP-030 | EXP-030-zeroshot@best | MSH | test | none | 0.5239 | 0.8545 | 0.5167 | -0.0112 | 1.2040 | configs/EXP-030.yaml | 634c503 | 98min | 2026-07-29 |
+| EXP-031 | EXP-031@best | MSH | test | full | 0.6752 | 0.9421 | 0.6973 | +0.0383 | 0.8533 | configs/EXP-031.yaml | 634c503 | 33min | 2026-07-29 |

@@ -22,6 +22,23 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
     state = torch.load(ckpt_file, map_location="cpu", weights_only=False)
     cfg = state["cfg"]
 
+    if "corpus" in cfg:  # pretrained trunk: zero-shot via swapped card context
+        from draftbot.data.corpus import _statless, add_bias_row
+        from draftbot.data.features import assemble
+        from draftbot.train.pretrain import build_trunk
+        scaler = load_scaler(ckpt_dir / "scaler.json")
+        feats_df, _ = assemble(set_code, "full" if stats == "none" else stats,
+                               scaler=scaler)
+        if stats == "none":
+            feats_df = _statless(feats_df)
+        table = torch.tensor(add_bias_row(feats_df))
+        model = build_trunk(cfg, table.shape[1])
+        model.load_state_dict(state["model"])
+        scorer = TorchScorer(model, f"{cfg['exp']}-zeroshot@{ckpt_file.stem}",
+                             device_auto())
+        model.embedding.set_context(table.to(scorer.device))
+        return scorer
+
     from draftbot.train.loop import build_model, feature_tensor
     scaler = load_scaler(ckpt_dir / "scaler.json")
     has_stat_cols = "avg_seen" in scaler  # draft-stage stat present ⇔ stats-trained

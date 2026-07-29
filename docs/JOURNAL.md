@@ -167,3 +167,15 @@ rarity-first +20pts. Phase-3 gate conditions 1-2 comfortably met on val
 (GIH-greedy(week1) val = .3804/.4198exp; margin +27pts; gap to Phase-2 best
 2.7pts < 6). Day-0 mode .53 = better than any stats-armed heuristic bot.
 EXP-031 fine-tune launching via chain.
+
+## 2026-07-29 — Phase-3 gate: 3 of 4 conditions pass; condition 3 = statistical tie
+
+MSH TEST (declared gate run): (1) zs(week1) .6486 vs gih-greedy(week1) .3793
+✓ +27pts; (2) gap to Phase-2 best .6756−.6486 = 2.7pts < 6 ✓; (4) zero-shot
+easy fixtures 10/10 ✓. (3) EXP-031 FT .6752 vs EXP-013 .6756 — 0.04pt under
+(≈0.3 SE on 154k picks; VAL had EXP-031 ahead +0.27pt expert). Reading: tie
+within noise, not "pretraining hurts", but the gate is strict — one remedy
+sanctioned: EXP-032 (gentler FT: peak_lr 7e-5, warmup 200, patience 5).
+If it also lands under, escalate per protocol.
+Zero-shot day-0 test .5239 with skill-gap −.011 (without stats the trunk can't
+fully separate expert taste — noted for P3.T5 oracle-text lever).
