@@ -245,3 +245,17 @@ every mode (recipe gate ✓); EXP-033 is now the recommended --base for future
 onboard-set runs. Phase-4 gate: one-command onboarding ✓, adapter decision
 documented with data ✓. Remaining open plan work: P3.T5/T6 (owner-deferred),
 Phase 5 (deckbuilder implementation, HUD H1-H5 per docs/HUD_PLAN.md).
+
+## 2026-07-29 — HUD H1+H2 landed (terminal advisor working in replay)
+
+follower.py parses the exact message shapes from seventeenlands/mtga_follower
+(Draft.Notify multi-line JSON buffering included); state.py maps grpId==
+arena_id → vocab via the Scryfall cache and rebuilds (packs, prev, position) by
+counting packs (Arena's reported numbers are display-only — base varies).
+H1 DoD: synthesized Player.log of a REAL test draft replays to exact array
+reconstruction (42+42 events, zero unresolved grpIds, mid-draft attach test).
+H2: `python -m draftbot.hud --models checkpoints/EXP-033 [--replay log]`
+renders live rich table: rank/name(rarity-tinted)/calibrated-prob bar/GIH/ALSA,
+pool pips, model-disagreement flag in the title. Verified over a full 42-pick
+replay with EXP-033. Awaiting Mark's captured real Player.log (Detailed Logs
+on) to harden fixtures; H3 window UI awaits the design-brief round-trip.
