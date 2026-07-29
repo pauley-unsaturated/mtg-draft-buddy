@@ -84,8 +84,10 @@ class DecoderBlock(nn.Module):
 class CardEncoder(nn.Module):
     """Learned-id half ∥ feature-MLP half (ConcatEmbedding, modern internals).
 
-    learned_scale=0 disables the id half (feature-only pathway for Phase 3
-    zero-shot; the table still exists, zero-initialized, for fine-tuning)."""
+    feature_only=True zero-inits the id half (Phase-3 pretraining: zero-shot =
+    pure feature pathway; a fresh per-set table is trained only at fine-tune).
+    For multi-set training, `set_context(features, table)` swaps the card
+    universe; the feature MLP is shared across sets."""
 
     def __init__(self, n_tokens: int, emb_dim: int, card_features: torch.Tensor,
                  feature_only: bool = False):
@@ -100,10 +102,29 @@ class CardEncoder(nn.Module):
         if feature_only:
             nn.init.zeros_(self.learned.weight)
         self.feature_only = feature_only
+        self._ext_features: torch.Tensor | None = None
+        self._ext_table: nn.Embedding | None = None
+
+    def set_context(self, card_features: torch.Tensor,
+                    table: nn.Embedding | None = None):
+        """Swap the card universe (multi-set pretraining / new-set inference)."""
+        self._ext_features = card_features
+        self._ext_table = table
 
     def all_embeddings(self) -> torch.Tensor:
-        return torch.cat([self.learned.weight,
-                          self.mlp(self.card_features)], -1)
+        feats = self._ext_features if self._ext_features is not None \
+            else self.card_features
+        feat_half = self.mlp(feats)
+        if self._ext_features is not None:
+            if self._ext_table is not None:
+                learned_half = self._ext_table.weight
+            else:  # pure feature pathway for a foreign set
+                learned_half = torch.zeros(
+                    feats.shape[0], self.learned.embedding_dim,
+                    device=feats.device, dtype=feat_half.dtype)
+        else:
+            learned_half = self.learned.weight
+        return torch.cat([learned_half, feat_half], -1)
 
 
 class ModernDraftBot(nn.Module):
@@ -112,13 +133,19 @@ class ModernDraftBot(nn.Module):
     def __init__(self, n_cards: int, card_features: torch.Tensor, t: int = 42,
                  emb_dim: int = 128, layers: int = 4, heads: int = 8,
                  dropout: float = 0.0, use_set_encoder: bool = True,
-                 pointer_head: bool = True, feature_only: bool = False):
+                 pointer_head: bool = True, feature_only: bool = False,
+                 use_set_token: bool = False):
         super().__init__()
         self.n_cards, self.t, self.emb_dim = n_cards, t, emb_dim
         assert card_features.shape[0] == n_cards + 1  # + start-of-draft bias token
         self.embedding = CardEncoder(n_cards + 1, emb_dim, card_features,
                                      feature_only)
-        self.pos_embedding = nn.Embedding(t, emb_dim)
+        self.use_set_token = use_set_token
+        if use_set_token:  # summary token prepended at position 0
+            self.set_token_mlp = nn.Sequential(
+                nn.Linear(card_features.shape[1], emb_dim), nn.SiLU(),
+                nn.Linear(emb_dim, emb_dim))
+        self.pos_embedding = nn.Embedding(t + (1 if use_set_token else 0), emb_dim)
         self.use_set_encoder = use_set_encoder
         if use_set_encoder:
             self.pack_blocks = nn.ModuleList(
@@ -157,17 +184,30 @@ class ModernDraftBot(nn.Module):
             valid = (~pad_mask).unsqueeze(-1)
             summary = (pack_emb * valid).sum(2) / valid.sum(2).clamp(min=1)
 
+        bias_id = all_emb.shape[0] - 1  # bias token is always the last row
         prev_ids = torch.where(prev_picks == PAD,
-                               torch.full_like(prev_picks, self.n_cards), prev_picks)
+                               torch.full_like(prev_picks, bias_id), prev_picks)
         prev_emb = all_emb[prev_ids]
-        pos = self.pos_embedding(torch.arange(t, device=device))[None].expand(B, -1, -1)
+        offset = 1 if self.use_set_token else 0
+        pos = self.pos_embedding(
+            torch.arange(offset, t + offset, device=device))[None].expand(B, -1, -1)
         x = self.fusion(torch.cat([summary, prev_emb, pos], -1))
         x = self.drop(x)
 
-        causal = torch.triu(torch.full((t, t), float("-inf"), device=device), 1)
+        if self.use_set_token:
+            feats = self.embedding._ext_features if self.embedding._ext_features \
+                is not None else self.embedding.card_features
+            set_vec = self.set_token_mlp(feats[:-1].mean(0))  # exclude bias row
+            tok = (set_vec + self.pos_embedding.weight[0])[None, None].expand(B, 1, -1)
+            x = torch.cat([tok, x], dim=1)
+
+        L = x.shape[1]
+        causal = torch.triu(torch.full((L, L), float("-inf"), device=device), 1)
         for blk in self.blocks:
             x = blk(x, causal)
         x = self.final_norm(x)
+        if self.use_set_token:
+            x = x[:, 1:]
 
         if self.pointer:
             q = self.q_proj(x)                            # (B,t,E)

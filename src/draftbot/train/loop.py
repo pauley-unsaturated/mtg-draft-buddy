@@ -66,11 +66,14 @@ def build_model(cfg: dict, n_cards: int, card_features: torch.Tensor, t: int):
     if kind == "modern":
         from draftbot.models.modern import ModernDraftBot
         return ModernDraftBot(
-            n_cards, card_features, t=t, emb_dim=cfg.get("emb_dim", 128),
+            n_cards, card_features, t=cfg.get("t_max", t),
+            emb_dim=cfg.get("emb_dim", 128),
             layers=cfg.get("layers", 4), heads=cfg.get("heads", 8),
             dropout=cfg.get("dropout", 0.0),
             use_set_encoder=cfg.get("use_set_encoder", True),
-            pointer_head=cfg.get("pointer_head", True))
+            pointer_head=cfg.get("pointer_head", True),
+            feature_only=cfg.get("feature_only", False),
+            use_set_token=cfg.get("use_set_token", False))
     raise ValueError(f"unknown model kind {kind}")
 
 
@@ -126,8 +129,25 @@ class Trainer:
 
         cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
         self.n_cards = len(cards)
-        feats, _ = feature_tensor(set_code, cfg.get("stats", "full"), ckpt_dir=self.dir)
+        pre_scaler = None
+        if cfg.get("scaler_from"):  # fine-tune: reuse the pretrain-corpus scaler
+            from draftbot.data.features import load_scaler
+            pre_scaler = load_scaler(Path(cfg["scaler_from"]) / "scaler.json")
+        feats, _ = feature_tensor(set_code, cfg.get("stats", "full"),
+                                  ckpt_dir=self.dir, scaler=pre_scaler)
         self.model = build_model(cfg, self.n_cards, feats, self.t).to(self.device)
+        if cfg.get("init_from"):  # warm-start from a pretrained trunk
+            src = Path(cfg["init_from"])
+            src_file = src if src.is_file() else src / "best.pt"
+            state = torch.load(src_file, map_location=self.device,
+                               weights_only=False)["model"]
+            own = self.model.state_dict()
+            loadable = {k: v for k, v in state.items()
+                        if k in own and own[k].shape == v.shape}
+            skipped = sorted(set(state) - set(loadable))
+            self.model.load_state_dict(loadable, strict=False)
+            print(f"init_from {src_file}: {len(loadable)} tensors loaded, "
+                  f"skipped {skipped}")
         n_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(f"{self.exp}: {n_params / 1e6:.2f}M params on {self.device}")
 
