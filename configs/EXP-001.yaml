@@ -1,0 +1,24 @@
+# EXP-001: LegacyDraftBot baseline reproduction on MSH (PLAN P1.T7).
+# Faithful port of the 2022 architecture: emb 128, 2+2 layers, importance
+# weighting, triplet+rare+cmc priors, Noam warmup.
+exp: EXP-001
+model: legacy
+set: MSH
+stats: full
+seed: 17
+batch_drafts: 64
+epochs: 20
+patience: 3
+emb_dim: 128
+enc_layers: 2
+dec_layers: 2
+enc_heads: 8
+dec_heads: 8
+dropout: 0.1
+weighting: importance
+priors: true
+emb_lambda: 1.0
+rare_lambda: 10.0
+cmc_lambda: 1.0
+lr_warmup: 1000
+grad_clip: 1.0
