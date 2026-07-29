@@ -131,6 +131,14 @@ dmypy.json
 # Don't upload data
 data/
 
+# Checkpoints, training runs, experiment logs
+checkpoints/
+runs/
+wandb/
+*.ckpt
+*.pt
+events.out.tfevents.*
+
 # Don't upload vscode specs
 .vscode
 
