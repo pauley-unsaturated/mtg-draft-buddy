@@ -24,7 +24,7 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
 
     from draftbot.train.loop import build_model, feature_tensor
     scaler = load_scaler(ckpt_dir / "scaler.json")
-    has_stat_cols = any(c.endswith("__miss") for c in scaler)
+    has_stat_cols = "avg_seen" in scaler  # draft-stage stat present ⇔ stats-trained
     if stats == "none" and has_stat_cols:
         # stat-trained model in day-0 mode: full-width table, stats zeroed, masks on
         from draftbot.data.corpus import _statless, add_bias_row

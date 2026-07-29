@@ -71,3 +71,15 @@ from the vocab so this couldn't happen. Kept as-is for baseline fidelity —
 EXP-001 is the reproduction, priors on. Phase-2 v2 (priors off, skill curation)
 must clear the easy-no-basic-over-playable fixture EXP-001 fails. Watchdog for
 this now exists in the demo + this probe.
+
+## 2026-07-29 — EXP-010: v2 architecture validates decisively
+
+val top-1 .6725 vs EXP-001 .5758 (+9.7). Expert .6977, skill-gap +.041, ECE .007,
+rare-take 1.12× expert (priors OFF — watchdog healthy), pool coherence 2.07
+(human 2.14), P1P1 basic pathology eliminated (0.0%; overall 3.3% ≈ human).
+All 21 behavioral fixtures pass (easy+medium+hard) → P2.T5 done early.
+1.27M params, 11 epochs / 10.4 min (early stop @8). Skill filter kept 28,618/61,573
+drafts (46%). Ablation chain EXP-011..014 + EXP-020 scale-up running.
+Corpus: all 29 non-MSH sets downloaded (6.7GB); onboarding in progress —
+MKM needed PLST (The List) companion sheet, registry extended, politeness sleeps
+raised after Scryfall 429s.
