@@ -27,3 +27,11 @@ Primary metric: top-1 on MSH test; headline: expert-subset top-1.
 | EXP-030 | EXP-030-zeroshot@best | MSH | test | none | 0.5239 | 0.8545 | 0.5167 | -0.0112 | 1.2040 | configs/EXP-030.yaml | 634c503 | 98min | 2026-07-29 |
 | EXP-031 | EXP-031@best | MSH | test | full | 0.6752 | 0.9421 | 0.6973 | +0.0383 | 0.8533 | configs/EXP-031.yaml | 634c503 | 33min | 2026-07-29 |
 | EXP-032 | EXP-032@best | MSH | test | full | 0.6752 | 0.9420 | 0.6972 | +0.0379 | 0.8531 | configs/EXP-032.yaml | ed4c23a | 42min | 2026-07-29 |
+| EXP-040-1k | EXP-040-1k@best | MSH | val | full | 0.6666 | 0.9377 | 0.6935 | +0.0416 | 0.8757 | configs/EXP-040-1k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-040-5k | EXP-040-5k@best | MSH | val | full | 0.6716 | 0.9404 | 0.6966 | +0.0391 | 0.8651 | configs/EXP-040-5k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-041-1k | EXP-041-1k@best | MSH | val | full | 0.6654 | 0.9370 | 0.6919 | +0.0416 | 0.8802 | configs/EXP-041-1k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-041-5k | EXP-041-5k@best | MSH | val | full | 0.6698 | 0.9392 | 0.6946 | +0.0390 | 0.8672 | configs/EXP-041-5k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-041-all | EXP-041-all@best | MSH | val | full | 0.6770 | 0.9424 | 0.7021 | +0.0391 | 0.8498 | configs/EXP-041-all.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-042-1k | EXP-042-1k@best | MSH | val | full | 0.6634 | 0.9360 | 0.6899 | +0.0414 | 0.8851 | configs/EXP-042-1k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-042-5k | EXP-042-5k@best | MSH | val | full | 0.6672 | 0.9386 | 0.6924 | +0.0395 | 0.8732 | configs/EXP-042-5k.yaml | 6959f47 | grid | 2026-07-29 |
+| EXP-042-all | EXP-042-all@best | MSH | val | full | 0.6733 | 0.9405 | 0.6987 | +0.0399 | 0.8611 | configs/EXP-042-all.yaml | 6959f47 | grid | 2026-07-29 |

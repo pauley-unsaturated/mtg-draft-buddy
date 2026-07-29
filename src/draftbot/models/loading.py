@@ -58,6 +58,10 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
     t = state["model"]["pos_embedding.weight"].shape[0] - (
         1 if cfg.get("use_set_token") else 0)
     model = build_model(cfg, len(cards), feats, t)
+    if any("parametrizations" in k for k in state["model"]):
+        from draftbot.models.lora import apply_finetune_mode
+        apply_finetune_mode(model, "lora", rank=cfg.get("lora_rank", 4),
+                            alpha=cfg.get("lora_alpha", 16.0))
     model.load_state_dict(state["model"])
     name = f"{cfg['exp']}@{ckpt_file.stem}"
     return TorchScorer(model, name, device_auto())

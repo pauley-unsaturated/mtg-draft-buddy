@@ -215,3 +215,21 @@ lookup into cards.parquet). Full plan in docs/HUD_PLAN.md: LogFollower →
 DraftState → Advisor (existing TorchScorer, calibrated probs) → rich-TUI v0
 then pywebview panel with Scryfall art. Milestones H1-H5; H1 needs a captured
 real draft log (Mark: enable Detailed Logs + save Player.log after next draft).
+
+## 2026-07-29 — P4.T2 equivalence study: LoRA ≈ full-FT, decision LORA-BY-DEFAULT
+
+Expert val top-1 across modes × MSH draft budgets (all init_from EXP-030):
+            1k      5k      all(61.6k)   trainable
+full-FT    .6935   .6966   .7043        100% (8.0M)
+LoRA r4    .6919   .6946   .7021        4.2% (329k)
+head-only  .6899   .6924   .6987        ~2% (174k)
+LoRA sits 0.16-0.22pt under full-FT at every budget — equivalent within split
+noise, at 1/24th the trainable params. DECISION: LoRA is the default for
+onboard-set adapters (cheap, reusable base, separate adapter.pt); full-FT
+reserved for flagship-set models where the last 0.2pt matters. Head-only is a
+surprisingly strong floor (.6987 ≈ Phase-2 EXP-013's .6985 with 2% params) —
+fine for day-3 quick adapters. Few-shot: ~1k drafts (≈ day 1-2 of a set)
+reaches ~.69 expert in every mode — this table doubles as the P3.T6 evidence
+at 3 budgets. LoRA device-placement + parametrized-checkpoint loading bugs
+fixed along the way (params must be created on the base weight's device;
+loader re-applies LoRA structure before load_state_dict).
