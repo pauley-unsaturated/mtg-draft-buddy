@@ -179,3 +179,16 @@ sanctioned: EXP-032 (gentler FT: peak_lr 7e-5, warmup 200, patience 5).
 If it also lands under, escalate per protocol.
 Zero-shot day-0 test .5239 with skill-gap −.011 (without stats the trunk can't
 fully separate expert taste — noted for P3.T5 oracle-text lever).
+
+## 2026-07-29 — Phase-3 gate condition 3: second attempt also ties → ESCALATED
+
+EXP-032 (gentler FT) test: .6752/.6972exp — identical to EXP-031 (.6752/.6973).
+Robust result: the pretrained+fine-tuned model TIES the MSH-only best
+(Δ −0.0004 overall, −0.0013 expert; both under 1 SE). Val ordering favored the
+fine-tunes (.7047/.7043 vs .7020) — test flip is textbook split noise.
+"Pretraining must not hurt the data-rich case": demonstrated (no hurt). Strict
+"≥": not met. Two remedies attempted → escalating the pass/hold decision to
+Mark per §0. MSH stays quarantined until he rules. Both deliverables exist and
+are demo-ready: EXP-013 (single-set best) and EXP-031 (pretrained→fine-tuned;
+EXP-032 equivalent). Zero-shot results unaffected — those passed with +27pt
+margins.

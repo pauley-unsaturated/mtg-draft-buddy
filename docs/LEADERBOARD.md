@@ -26,3 +26,4 @@ Primary metric: top-1 on MSH test; headline: expert-subset top-1.
 | EXP-030 | EXP-030-zeroshot@best | MSH | test | week1 | 0.6486 | 0.9265 | 0.6696 | +0.0358 | 0.9324 | configs/EXP-030.yaml | 634c503 | 98min | 2026-07-29 |
 | EXP-030 | EXP-030-zeroshot@best | MSH | test | none | 0.5239 | 0.8545 | 0.5167 | -0.0112 | 1.2040 | configs/EXP-030.yaml | 634c503 | 98min | 2026-07-29 |
 | EXP-031 | EXP-031@best | MSH | test | full | 0.6752 | 0.9421 | 0.6973 | +0.0383 | 0.8533 | configs/EXP-031.yaml | 634c503 | 33min | 2026-07-29 |
+| EXP-032 | EXP-032@best | MSH | test | full | 0.6752 | 0.9420 | 0.6972 | +0.0379 | 0.8531 | configs/EXP-032.yaml | ed4c23a | 42min | 2026-07-29 |
