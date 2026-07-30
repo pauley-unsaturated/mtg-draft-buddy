@@ -40,6 +40,10 @@ def main(argv=None):
     p.add_argument("--scheme", default="random", choices=["random", "temporal"])
     p.add_argument("--deck", action="store_true",
                    help="deck-builder eval (PLAN P5.T1a) instead of draft eval")
+    p.add_argument("--decode", default=None,
+                   choices=["greedy", "expected", "maskgit", "rescore"],
+                   help="override the checkpoint's decode (deck eval only; "
+                        "the override is recorded in the model name)")
     p.add_argument("--out", type=Path, default=None)
     args = p.parse_args(argv)
 
@@ -47,7 +51,7 @@ def main(argv=None):
         from draftbot.eval.decks import evaluate_deck, render_deck_markdown
         card = evaluate_deck(args.model, args.set_code, args.split,
                              args.stats_snapshot, scheme=args.scheme,
-                             out_dir=args.out)
+                             out_dir=args.out, decode=args.decode)
         print(render_deck_markdown(card))
         return 0
 

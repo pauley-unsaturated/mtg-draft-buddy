@@ -347,7 +347,8 @@ def winner_preference(set_code: str, split_ids: set[str],
 
 # --------------------------------------------------------------------- CLI ---
 def evaluate_deck(builder_name: str, set_code: str, split: str, stats: str,
-                  scheme: str = "random", out_dir: Path | None = None) -> dict:
+                  scheme: str = "random", out_dir: Path | None = None,
+                  decode: str | None = None) -> dict:
     splits = load_splits(set_code)
     split_ids = set(splits[scheme][split])
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
@@ -376,6 +377,9 @@ def evaluate_deck(builder_name: str, set_code: str, split: str, stats: str,
                 raise SystemExit(f"unknown deck model {builder_name!r}")
             from draftbot.models.loading import deck_builder_from_checkpoint
             builder = deck_builder_from_checkpoint(ckpt, set_code, stats)
+            if decode and decode != builder.decode:
+                builder.decode = decode
+                builder.name = f"{builder.name}+{decode}"
         main_builds = builder.build_all(main_arr)
         trophy_builds = builder.build_all(trophy_arr)
         name = builder.name

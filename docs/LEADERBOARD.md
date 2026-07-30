@@ -78,3 +78,6 @@ pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
 | EXP-110 | EXP-110@best | MSH | val | full | 0.8873 | 0.8668 | 0.8959 | 0.478 | 0.8937 | 0.252 | 2.345 | configs/EXP-110.yaml | 3a8c483 | 7.1min | 2026-07-30 |
 | EXP-107 | EXP-107@best | MSH | test | full | 0.8888 | 0.8669 | 0.8968 | 0.386 | 0.8941 | 0.254 | 2.228 | configs/EXP-107.yaml | 3a8c483 | 2.6min | 2026-07-30 |
 | — | rebuild-ceiling | MSH | test | full | 0.9535 | 0.9465 | 0.9654 | nan | 0.9583 | 0.180 | 1.044 | baseline | 3a8c483 | <1min | 2026-07-30 |
+| EXP-111 | EXP-111@best | MSH | val | full | 0.8856 | 0.8635 | 0.8936 | 0.473 | 0.8917 | 0.243 | 2.324 | configs/EXP-111.yaml | 97d376b | 3.9min | 2026-07-30 |
+| EXP-112 | EXP-112@best | MSH | val | full | 0.8861 | 0.8637 | 0.8946 | 0.467 | 0.8923 | 0.247 | 2.294 | configs/EXP-112.yaml | 97d376b | 4.1min | 2026-07-30 |
+| EXP-113 | EXP-113@best | MSH | val | full | 0.8862 | 0.8642 | 0.8948 | 0.462 | 0.8924 | 0.246 | 2.307 | configs/EXP-113.yaml | 97d376b | 16min | 2026-07-30 |

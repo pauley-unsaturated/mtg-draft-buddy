@@ -476,3 +476,20 @@ candidates × quality head). 6 new tests, 11/11 green.
 - EXP-112: + quality contrast loss (the winner-pref play, as training signal).
 - EXP-113: + rescore decode (quality head picks among candidates).
 Bars (pre-declared): val trophy-F1 ≥ 0.9127 AND winner-pref ≥ 0.55.
+
+## 2026-07-30 — Stage-2 round 1 (111-113) + two decisive diagnostics
+
+- EXP-111 diffusion+maskgit 0.8936 / EXP-112 +quality 0.8946 / EXP-113
+  +rescore 0.8948 — all below EXP-107 (0.8977). Decode decomposition:
+  masked training −0.26, maskgit decode −0.15 further.
+- Winner-pref UNMOVED (0.46-0.47) by the quality head.
+- Diagnostic 1: rescore candidates — 1.84 distinct/5, identical in 42.5% of
+  pools. Some diversity exists; the head just isn't choosing well.
+- Diagnostic 2 (label reliability): Beta-posterior P(observed winner truly
+  better) = **0.738** over the 91 val pairs → the winner-pref bar of 0.55 is
+  reachable (oracle ≈0.74); our 0.47 is a model failure, not label noise.
+Round 5 (trophy levers, one each vs 112): EXP-114 epochs 50; EXP-115
+reveal_weight 0.2; EXP-116 cosine mask distribution. Round 6 planned:
+quality-head v2 — contrast pairs from ALL strict win-gap≥2 rebuilds (~5x
+data) and basics fed to the quality head (manabase deltas are currently
+invisible to it).

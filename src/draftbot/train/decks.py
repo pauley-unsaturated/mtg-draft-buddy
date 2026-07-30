@@ -71,14 +71,21 @@ def deck_loss(model, arr, targets, weights: np.ndarray, b: np.ndarray,
     slot_w = torch.from_numpy(pool_w[b]).to(device) * ex_w[:, None]
 
     if getattr(model, "diffusion", False):
+        import math
         deck_cnt = torch.from_numpy(arr.deck_counts[b].astype(np.int64)).to(device)
         rho = torch.rand(ids.shape[0], device=device)
+        if cfg.get("mask_dist") == "cosine":  # bias toward the all-masked
+            rho = torch.cos(math.pi / 2 * (1 - rho))  # inference condition
         reveal = torch.rand_like(slot_w) >= rho[:, None]
         state = torch.where(reveal & (ids >= 0),
                             deck_cnt.clamp(0, MASK_STATE - 1),
                             torch.full_like(ids, MASK_STATE))
         member, land, basics = model(ids, cnt, ids == -1, state)
-        slot_w = slot_w * (~reveal)  # score only what was hidden
+        # hidden slots carry the objective; revealed ones optionally kept at a
+        # low weight so masking doesn't halve the supervision per step
+        rw = cfg.get("reveal_weight", 0.0)
+        slot_w = slot_w * torch.where(reveal, torch.full_like(slot_w, rw),
+                                      torch.ones_like(slot_w))
     else:
         member, land, basics = model(ids, cnt, ids == -1)
     target = torch.from_numpy(frac[b]).to(device)
