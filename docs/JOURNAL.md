@@ -303,3 +303,35 @@ pool set-transformer, membership + land-count + basics heads, trained on
 game_data winning builds (win-weighted), nonbasic lands treated as ordinary
 pool cards so bad fixing gets bad membership probability. Stage 2: masked
 discrete diffusion with partial-deck conditioning.
+
+## 2026-07-29 — P5.T1 deck dataset landed (DECK_DATA_PLAN DoD met)
+
+decks.parquet for MSH: 83,457 (draft, build) rows from 377,514 games, every
+game accounted for. The pilot's per-group python loop was replaced outright
+with the vectorized extractor the plan's perf note called for (whole-file
+read ≈1GB, groupby size/sum + one representative row per build) — ~2 min for
+MSH, so the 30-set scale-out needs no further work. All 5 validation-gate
+tests green on the first run (tests/test_decks.py), full suite still green.
+
+Surprises vs the 30k-game probe, now recorded in the plan + data card:
+- Deck-size tail reaches 60 cards, not 43 (≤1% above 43; 92.6% exactly 40).
+  Cap-at-43 stands for size-conditioned heads; oversize rows stay as
+  membership examples.
+- Basics range is wider (4–23 vs probe's 6–19); mean 14.8 unchanged.
+- 83.5k builds, not the ~95k extrapolated; rebuilds go up to 7, not 5.
+- Pleasant: game_data draft_ids ⊆ draft parquet ids → 100% split coverage,
+  and pool identity vs the draft log held exactly on all 150 sampled drafts
+  (game_data and draft_data column vocabularies agree perfectly).
+- Trophy-view sizing for eval: 20.1% of builds have ≥5 wins, 6.1% ≥7.
+
+Next: the stage-1 membership model (pool set-transformer, membership +
+land-count + basics heads, win-weighted per the curation section).
+
+## 2026-07-29 — Repo hygiene: src/draftbot/data was never in git
+
+Committing P5.T1 exposed that .gitignore's unanchored `data/` pattern had
+silently ignored the whole src/draftbot/data package since Phase 0 — every
+"[P0.*]" commit shipped tests and docs but not the pipeline source. Pattern
+anchored to `/data/`; package committed as it stands (c0d3506). Nothing was
+lost (the working tree was always the source of truth), but any earlier
+checkout of this branch would not have reproduced the pipeline.

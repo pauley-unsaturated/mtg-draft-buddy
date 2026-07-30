@@ -18,6 +18,15 @@
 - ranks: ['unknown']
 - user_n_games buckets: [1, 5, 10, 50, 100, 500, 1000]
 
+## Decks (game_data, PremierDraft)
+
+- builds: 83,457 | drafts: 67,808 | games: 377,514 (4.5 per build)
+- rebuilds: 81.0% of drafts have 1 build; max 7
+- deck size: 92.6% exactly 40 (range 40-60)
+- basics per deck: mean 14.8 σ 1.6 (range 4-23)
+- wins per build: 18.4% zero-win, 20.1% ≥5 wins, 6.1% ≥7 wins (trophy pool)
+- split coverage: 100.0% of builds join `data/splits/MSH.json`
+
 ## Cards
 
 - vocab: 339 cards (5 basics, 5 flip)

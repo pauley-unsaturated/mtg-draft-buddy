@@ -10,25 +10,29 @@ Owner directive 2026-07-29: nail the dataset before the builder model.
 | `draft_data_public...` | on disk (Phase 0) | per-pick draft logs | cross-validation of pools + shared splits |
 | replay data | **not used** — per-action play-by-play; not at the public S3 path (audit 2026-07-28) | — | out of scope |
 
-## Empirical facts (MSH probe, 30k games)
+## Empirical facts (MSH full population, 377,514 games — supersedes the 30k probe)
 
-- Deck sizes: 94% exactly 40; tail 41–43 (keep, cap features at 43).
-- Basics per deck: mean 14.7 (σ 1.7, range 6–19) → total lands ≈ 17 with ~2.3
+- Deck sizes: 92.6% exactly 40; ≥99% within 40–43; true tail reaches 60
+  (rate ≤1% — keep cap 43 for size-conditioned heads; oversize rows remain
+  valid membership-training examples).
+- Basics per deck: mean 14.8 (σ 1.6, range 4–23) → total lands ≈ 17 with ~2.3
   nonbasics; land-count head range 14–20 is right.
 - Nonbasic pool sizes 38–42 — consistent with 42 picks minus drafted basics.
-- No games with a missing deck block.
-- ~95k distinct (draft, build) pairs per big set; 1 build for 81% of drafts,
-  rebuilds up to 5; ~4.5 games per build.
+- No games with a missing deck block (`won` parses strictly as bool; zero NaNs).
+- 83,457 (draft, build) pairs / 67,808 drafts on MSH (probe extrapolated ~95k);
+  1 build for 81.0% of drafts, rebuilds up to 7; 4.5 games per build.
+- game_data draft_ids are a subset of the draft parquet's → 100% of builds
+  join `data/splits/MSH.json`.
 
 ## Extraction → `data/processed/<SET>/decks.parquet`
 
 One row per (draft_id, build_index):
 `deck_ids/deck_counts` (sparse nonbasics — nonbasic LANDS included as ordinary
 cards), `side_ids/side_counts`, `basics` (W/U/B/R/G counts), `n_games`,
-`n_wins`, `user_win_rate`. Extractor: `draftbot/data/decks.py` (pilot running).
-Perf note: the pilot's per-group python loop is fine for one set; vectorize
-(hash deck vectors per draft, groupby-first + size/sum) before scaling to 30
-sets.
+`n_wins`, `user_win_rate`. Extractor: `draftbot/data/decks.py` — vectorized
+(whole-file read fits RAM easily; groupby size/sum for games/wins + one
+representative row per build for the card vectors). MSH extracts in ~2 min;
+ready for the 30-set scale-out as-is.
 
 ## Validation suite (tests/test_decks.py — gate for the model work)
 
@@ -67,3 +71,7 @@ a new sandbag exists by then.
 decks.parquet for MSH; all 5 validation tests green; data card section added
 to docs/data_cards/MSH.md (deck counts, sizes, wins distribution, computed not
 typed); journal entry with any surprises.
+
+**Status 2026-07-29: MET.** decks.parquet (83,457 builds), tests/test_decks.py
+5/5 green, data card §Decks regenerated, journal entry written. Model work
+(membership + basics + land-count heads) may begin.
