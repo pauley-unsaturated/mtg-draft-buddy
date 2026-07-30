@@ -33,7 +33,7 @@ class DeckBuilder(nn.Module):
 
     def __init__(self, card_features: torch.Tensor, emb_dim: int = 128,
                  heads: int = 8, blocks: int = 3, dropout: float = 0.1,
-                 diffusion: bool = False):
+                 diffusion: bool = False, quality_basics: bool = False):
         super().__init__()
         self.register_buffer("card_features", card_features)  # (n_cards, F)
         f = card_features.shape[1]
@@ -49,11 +49,13 @@ class DeckBuilder(nn.Module):
         self.basics_head = nn.Linear(emb_dim, 5)
         self.drop = nn.Dropout(dropout)
         self.diffusion = diffusion
+        self.quality_basics = quality_basics
         if diffusion:
             self.state_emb = nn.Embedding(MASK_STATE + 1, emb_dim)
             nn.init.zeros_(self.state_emb.weight)
+            q_in = emb_dim + (5 if quality_basics else 0)
             self.quality_head = nn.Sequential(
-                nn.Linear(emb_dim, emb_dim), nn.SiLU(), nn.Linear(emb_dim, 1))
+                nn.Linear(q_in, emb_dim), nn.SiLU(), nn.Linear(emb_dim, 1))
 
     def _trunk(self, pool_ids, pool_counts, pad_mask, deck_state=None):
         x = self.encoder(self.card_features[pool_ids.clamp(min=0)])
@@ -77,9 +79,14 @@ class DeckBuilder(nn.Module):
         member = self.member_head(x)[..., 0].masked_fill(pad_mask, -1e9)
         return member, self.land_head(pooled), self.basics_head(pooled)
 
-    def quality(self, pool_ids, pool_counts, pad_mask, deck_state):
-        """(B,) deck-quality score of a FULLY revealed build (win-aware aux)."""
+    def quality(self, pool_ids, pool_counts, pad_mask, deck_state,
+                basics: torch.Tensor | None = None):
+        """(B,) deck-quality score of a FULLY revealed build (win-aware aux).
+        basics: (B,5) basic counts / 20 — required when quality_basics (the
+        manabase is part of the deck being judged)."""
         _, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state)
+        if self.quality_basics:
+            pooled = torch.cat([pooled, basics], -1)
         return self.quality_head(pooled)[..., 0]
 
 
@@ -164,13 +171,17 @@ class TorchDeckBuilder:
                 scores = []
                 for cand in cands:
                     state = torch.zeros_like(ids)
+                    bas = torch.zeros((ids.shape[0], 5), device=self.device)
                     for j, pred in enumerate(cand):
                         row = {int(k): int(v) for k, v in pred["deck"].items()}
                         st = [row.get(int(c), 0) for c in arr.pool_ids[s + j]]
                         state[j] = torch.tensor(st, device=self.device)
+                        bas[j] = torch.tensor(np.asarray(pred["basics"]) / 20.0,
+                                              device=self.device,
+                                              dtype=torch.float32)
                     state = state.clamp(0, MASK_STATE - 1).masked_fill(
                         pad, MASK_STATE)
-                    scores.append(self.model.quality(ids, cnt, pad, state))
+                    scores.append(self.model.quality(ids, cnt, pad, state, bas))
                 best = torch.stack(scores).argmax(0).cpu().numpy()
                 out.extend(cands[int(best[j])][j] for j in range(ids.shape[0]))
             else:

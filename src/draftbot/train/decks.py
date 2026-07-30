@@ -38,7 +38,8 @@ def build_deck_model(cfg: dict, card_features: torch.Tensor) -> DeckBuilder:
     return DeckBuilder(card_features, emb_dim=cfg.get("emb_dim", 128),
                        heads=cfg.get("heads", 8), blocks=cfg.get("blocks", 3),
                        dropout=cfg.get("dropout", 0.1),
-                       diffusion=cfg.get("model", "builder") == "diffusion")
+                       diffusion=cfg.get("model", "builder") == "diffusion",
+                       quality_basics=cfg.get("quality_basics", False))
 
 
 def deck_targets(arr, is_land: np.ndarray):
@@ -161,12 +162,15 @@ class DeckTrainer:
         if cfg.get("quality_lambda"):  # within-pool winner/loser contrast
             m = self.train_arr.meta
             multi = m[m["draft_id"].duplicated(keep=False)]
+            scope = cfg.get("pair_scope", "trophy")  # trophy | all
+            min_gap = cfg.get("pair_min_gap", 1 if scope == "trophy" else 2)
             pairs = []
             for _, g in multi.groupby("draft_id", sort=False):
                 order = g.sort_values(["n_wins", "n_games", "build_index"],
                                       ascending=[False, False, True])
                 w, l = order.index[0], order.index[-1]
-                if m.loc[w, "n_wins"] >= 5 and m.loc[l, "n_wins"] < m.loc[w, "n_wins"]:
+                gap_ok = m.loc[w, "n_wins"] - m.loc[l, "n_wins"] >= min_gap
+                if gap_ok and (scope == "all" or m.loc[w, "n_wins"] >= 5):
                     pairs.append((w, l))
             self.pairs = np.array(pairs) if pairs else None
             print(f"quality contrast pairs: {0 if self.pairs is None else len(self.pairs)}")
@@ -225,7 +229,9 @@ class DeckTrainer:
         state = torch.from_numpy(arr.deck_counts[rows].astype(np.int64)) \
             .to(self.device).clamp(0, MASK_STATE - 1) \
             .masked_fill(ids == -1, MASK_STATE)
-        q = self.model.quality(ids, cnt, ids == -1, state)
+        bas = torch.from_numpy(arr.basics[rows].astype(np.float32) / 20.0) \
+            .to(self.device)
+        q = self.model.quality(ids, cnt, ids == -1, state, bas)
         margin = self.cfg.get("quality_margin", 0.2)
         return torch.relu(margin - (q[:k] - q[k:])).mean()
 
