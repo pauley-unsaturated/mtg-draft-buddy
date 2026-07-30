@@ -594,3 +594,19 @@ lr 2.5e-4; targets the 26% confident-error slice. EXP-123 = its MSH
 fine-tune. Owner compute sign-off given ("kick off the size probe");
 estimated 5-7h, checkpointed/resumable. Bars: EXP-122 zero-shot(full) >
 0.8871; EXP-123 > 0.9005 by ≥ +0.2 to justify the size for production.
+
+## 2026-07-30 — Owner: probe epochs too; keep probing until plateau
+
+Standing directive for the corpus-regime hill-climb. Probe queue (one lever
+per EXP, sequential — MPS fits one corpus run; each probe = corpus pretrain +
+3-min MSH fine-tune; production metric = fine-tuned MSH val trophy-F1):
+1. EXP-122/123 scale probe (running).
+2. Epochs probe: best-so-far corpus config with the cap lifted (EXP-120
+   was still improving at its 12-epoch cap).
+3. Then by results: MSH-in-corpus production pretrain (holdout was for the
+   day-1 science; production may include it — zero-shot numbers stay frozen
+   from EXP-120/122), stat_dropout rate, corpus win_skill weighting, era
+   weights, fine-tune recipe (LoRA vs full, FT epochs).
+Plateau rule: 3 consecutive probes with fine-tuned gain < +0.2pt. Each probe
+journaled with a one-line conclusion + leaderboard rows. Compute: each run
+kept ≤10h (§0); owner sign-off on the series given in this entry's directive.
