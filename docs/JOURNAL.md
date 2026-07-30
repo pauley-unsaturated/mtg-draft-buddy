@@ -358,3 +358,13 @@ every point above 0.78 as real work. The heuristics' failure is concentrated
 in manabases: lands-MAE 2.2–2.7 and basics-L1 ~6.5 vs the ceiling's 0.16/0.97
 — they take 17 basics and pip-split, humans play ~14.8 basics + the right
 nonbasic lands. That's exactly the membership+basics+land-head territory.
+
+## 2026-07-29 — EXP-101 intent (first trained deck builder, P5.T1e)
+
+M5.2 infra landed: deck trainer (train/decks.py, win-weighted BCE + land/basics
+heads, selection on val trophy-F1 through the real greedy decode), checkpoint
+loading, 5 correctness tests green (permutation equivariance, pad inertness,
+decode-legality ×200, loss finiteness, overfit canary F1≥0.80 in 8s).
+EXP-101: the journal design-note architecture at emb 128/3 blocks (~0.9M
+params), stats full, weighting (1+n_wins)·soft_skill. Must beat
+gih-in-lane-build (val F1 0.7844 / trophy 0.7915) to graduate M5.2.

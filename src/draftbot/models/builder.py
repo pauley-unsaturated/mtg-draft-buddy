@@ -11,9 +11,11 @@ for slots like any other card — a BG tapland in a WB deck gets the low
 membership it deserves.
 """
 
+import numpy as np
 import torch
 from torch import nn
 
+from draftbot.data.dataset import PAD
 from draftbot.models.modern import PMA, SetAttentionBlock
 
 LAND_MIN, LAND_MAX = 14, 20
@@ -52,11 +54,42 @@ class DeckBuilder(nn.Module):
         return member, self.land_head(pooled), self.basics_head(pooled)
 
 
+class TorchDeckBuilder:
+    """Batched inference + greedy decode; implements the deck-eval interface
+    (`.name`, `.build_all(DeckArrays)`)."""
+
+    def __init__(self, model: DeckBuilder, name: str, device,
+                 is_land_flags: np.ndarray, batch: int = 512):
+        self.model = model.to(device).eval()
+        self.name = name
+        self.device = device
+        self.is_land = is_land_flags
+        self.batch = batch
+
+    @torch.no_grad()
+    def build_all(self, arr) -> list[dict]:
+        out = []
+        for s in range(0, arr.n_builds, self.batch):
+            ids = torch.from_numpy(arr.pool_ids[s:s + self.batch]
+                                   .astype(np.int64)).to(self.device)
+            cnt = torch.from_numpy(arr.pool_counts[s:s + self.batch]
+                                   .astype(np.int64)).to(self.device)
+            member, land, basics = self.model(ids, cnt, ids == PAD)
+            member = torch.sigmoid(member).cpu().numpy()
+            land = torch.softmax(land, -1).cpu().numpy()
+            basics = torch.softmax(basics, -1).cpu().numpy()
+            for j in range(ids.shape[0]):
+                i = s + j
+                d = build_deck(member[j], land[j], basics[j], arr.pool_ids[i],
+                               arr.pool_counts[i], self.is_land)
+                out.append({"deck": d["deck"], "basics": d["basics"]})
+        return out
+
+
 def build_deck(member_probs, land_probs, basics_probs, pool_ids, pool_counts,
                is_land_flags) -> dict:
-    """Greedy 40-card assembly from head outputs (single example, numpy)."""
-    import numpy as np
-
+    """Greedy 40-card assembly from head outputs (single example, numpy).
+    Padded slots are harmless: their pool_count is 0."""
     total_lands = LAND_MIN + int(np.argmax(land_probs))
     order = np.argsort(-member_probs)
     deck: dict[int, int] = {}

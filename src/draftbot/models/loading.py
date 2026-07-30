@@ -65,3 +65,38 @@ def scorer_from_checkpoint(ckpt: Path, set_code: str, stats: str) -> TorchScorer
     model.load_state_dict(state["model"])
     name = f"{cfg['exp']}@{ckpt_file.stem}"
     return TorchScorer(model, name, device_auto())
+
+
+def deck_builder_from_checkpoint(ckpt: Path, set_code: str, stats: str):
+    """Deck-builder analogue of scorer_from_checkpoint (PLAN P5.T1).
+
+    The scaler comes from training; `stats` picks the eval-time snapshot
+    (`none` = zeroed stats + masks on, the day-0 condition)."""
+    from draftbot.data.deck_dataset import land_flags
+    from draftbot.models.builder import TorchDeckBuilder
+    from draftbot.train.decks import build_deck_model
+
+    ckpt = Path(ckpt)
+    ckpt_dir = ckpt if ckpt.is_dir() else ckpt.parent
+    ckpt_file = ckpt if ckpt.is_file() else ckpt_dir / "best.pt"
+    state = torch.load(ckpt_file, map_location="cpu", weights_only=False)
+    cfg = state["cfg"]
+    scaler = load_scaler(ckpt_dir / "scaler.json")
+    has_stat_cols = "avg_seen" in scaler
+    if stats == "none" and has_stat_cols:
+        from draftbot.data.corpus import _statless, add_bias_row
+        from draftbot.data.features import assemble
+        feats_df, _ = assemble(set_code, "full", scaler=scaler)
+        feats = torch.tensor(add_bias_row(_statless(feats_df)))
+    elif stats != "none" and not has_stat_cols:
+        raise SystemExit("model was trained without stats; use --stats-snapshot none")
+    else:
+        from draftbot.train.loop import feature_tensor
+        feats, _ = feature_tensor(set_code, stats, ckpt_dir=None, scaler=scaler)
+    model = build_deck_model(cfg, feats)
+    model.load_state_dict(state["model"])
+    with torch.no_grad():  # the checkpoint buffer holds TRAIN-time features;
+        model.card_features.copy_(feats)  # eval-time stat mode must win
+    cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
+    return TorchDeckBuilder(model, f"{cfg['exp']}@{ckpt_file.stem}",
+                            device_auto(), land_flags(cards))
