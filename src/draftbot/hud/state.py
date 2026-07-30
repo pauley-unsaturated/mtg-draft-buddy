@@ -100,10 +100,43 @@ class DraftState:
             self.set_code = code
             self._grp_map = grp_to_vocab(code)
 
+    def _resolve_unknown(self, grp: int) -> int | None:
+        """Alternate printings (e.g. second basic-land arts) carry arena ids
+        Scryfall's unique=cards search collapses away — resolve by id via the
+        /cards/arena endpoint (disk-cached), then map by name into the vocab."""
+        import pandas as pd
+
+        from draftbot.data.cards import (HEADERS, PROCESSED_DIR,
+                                         SCRYFALL_CACHE_DIR, name_to_id, norm_name)
+        cache = SCRYFALL_CACHE_DIR / "arena" / f"{grp}.json"
+        if cache.exists():
+            card = json.loads(cache.read_text())
+        else:
+            import requests
+            try:
+                resp = requests.get(f"https://api.scryfall.com/cards/arena/{grp}",
+                                    headers=HEADERS, timeout=10)
+            except requests.RequestException:
+                return None
+            if resp.status_code != 200:
+                return None
+            card = resp.json()
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(card))
+        if not self.set_code:
+            return None
+        cards = pd.read_parquet(PROCESSED_DIR / self.set_code / "cards.parquet")
+        vid = name_to_id(cards).get(norm_name(card.get("name", "")))
+        if vid is not None and self._grp_map is not None:
+            self._grp_map[grp] = vid
+        return vid
+
     def _map(self, grp_ids: list[int]) -> list[int]:
         out = []
         for g in grp_ids:
             vid = (self._grp_map or {}).get(int(g))
+            if vid is None:
+                vid = self._resolve_unknown(int(g))
             if vid is None:
                 self.unknown_grps.add(int(g))
             else:
