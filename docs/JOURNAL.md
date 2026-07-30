@@ -272,3 +272,11 @@ states, 220ms packIn only. hud/server.py: stdlib HTTP bridge (/, /state,
 pywebview (if installed) else browser. Verified end-to-end: full replay into
 the panel — state JSON, HTML 200, art fetch+cache 200. Remaining: H4 polish
 (bot drafts, auto-onboard unknown sets), real captured Player.log from Mark.
+
+## 2026-07-29 — HUD live-validated on a real Arena draft
+
+Mark drafted MSH with the window HUD live. Two real-log format fixes shipped
+mid-draft (request-envelope unwrap; set inference from pack grpIds via global
+index — no join message needed) and verified against the in-progress log
+before restart. HUD caught up mid-draft and tracked from pick 5 on. TODO:
+freeze Mark's Player.log as the real H1 fixture when the draft ends.
