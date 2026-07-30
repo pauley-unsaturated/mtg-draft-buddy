@@ -280,3 +280,16 @@ mid-draft (request-envelope unwrap; set inference from pack grpIds via global
 index — no join message needed) and verified against the in-progress log
 before restart. HUD caught up mid-draft and tracked from pick 5 on. TODO:
 freeze Mark's Player.log as the real H1 fixture when the draft ends.
+
+## 2026-07-29 — First complete HUD-assisted draft; report card + fixture frozen
+
+Mark completed a live MSH draft with the HUD. Report card vs EXP-033: 93% top-1
+agreement (39/42); ALL disagreements were picks 1-4 — before the live-log fixes
+shipped (his solo picks incl. P1P1 Baxter Building, model #7 @ 0.9%). Every
+fixing land taken later was the model's #1 at that state (37-56%) — the
+"splash enablement" is emergent expert imitation, not planning. Real log
+sanitized (draft events only) into tests/fixtures/real_draft_msh.log as the
+authoritative parser fixture. Live bugs found by the draft: request-envelope
+unwrap, set inference from grpIds, variant-basic arena ids (odd/even printing
+pairs — Scryfall unique=cards collapses them; now resolved via /cards/arena,
+disk-cached). All fixed + tested same session.
