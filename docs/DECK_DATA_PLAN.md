@@ -59,12 +59,13 @@ ready for the 30-set scale-out as-is.
 - Rebuilds: all builds kept for training (more signal); eval uses the
   most-played build per draft.
 
-## Scale-out
+## Scale-out — DONE 2026-07-30
 
-MSH first (model dev + his-draft demo). Then the same extractor over the 30-set
-corpus (~1.5–2M builds) for a pretrained feature-based builder — same
-set-agnostic card-feature pathway as the draft trunk, same quarantine rules if
-a new sandbag exists by then.
+Executed: 4.48M builds / 29 sets extracted (2021-era tar quirks handled; AFR
+dropped — 0.3% draft-log join). EXP-120 pretrained on 27 sets (MSH held out):
+zero-shot MSH trophy-F1 0.8298 (stats none) / 0.8871 (full); EXP-121 MSH
+fine-tune 0.9005 = new best. Corpus manifest configs/corpus/decks_v1.yaml;
+next sandbag joins `quarantine` on announcement day.
 
 ## DoD
 

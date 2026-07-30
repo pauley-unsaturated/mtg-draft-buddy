@@ -540,3 +540,26 @@ stat_dropout 0.25 (day-0 is a trained condition), corpus-only scaler,
 selection on corpus proxy sets (EOE/BLB/KTK/SNC — holdout never drives it).
 Bars: zero-shot MSH val (stats none) beats gih-in-lane-build (0.7915 trophy);
 EXP-121 fine-tune ≥ EXP-107 (0.8977).
+
+## 2026-07-30 — CORPUS PRETRAIN RESULTS: both bars passed; EXP-121 is the new MSH best
+
+EXP-120 (27-set pool→deck pretrain, 3.70M train builds, 2.6h, 0.81M params,
+MSH held out, stat-dropout 0.25):
+- **Zero-shot MSH (stats none — true day-1): trophy-F1 0.8298** — beats the
+  stats-informed gih-in-lane heuristic (0.7915) by +3.8pt with ZERO MSH data
+  of any kind. Bar passed.
+- **Zero-shot MSH (stats full): 0.8871** — within 1.1pt of the fully
+  MSH-trained EXP-107, without ever seeing an MSH deck. Deck building
+  transfers across sets far better than drafting (draft zero-shot gap was
+  ~3pt at week1 after heavy tuning).
+- **EXP-121 (MSH fine-tune, 3 min): trophy-F1 0.9005 — NEW BEST**, +0.28
+  over EXP-107; best basics-L1 (2.118) and curve-L1 (3.671) of any model.
+  Bar (≥ EXP-107) passed: pretraining helps even the data-rich case.
+Day-1 playbook is now measured, not speculative: ship 0.83 on release day,
+0.887 when the ratings API fills in (~day 3-7), 0.90+ the afternoon the
+game_data drop lands (3-minute fine-tune).
+NOT re-running the P5.T1g test gate with EXP-121 (would be a second gate
+attempt after EXP-107's fail — §0 says escalate): 0.9005 val would still sit
+~6pt from the 0.9625 rebuild ceiling. Owner decides whether the gate's
+ceiling criterion stands or the corpus trajectory (bigger trunk, more sets)
+gets another round first.
