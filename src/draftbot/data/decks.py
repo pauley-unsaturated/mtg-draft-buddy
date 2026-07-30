@@ -10,6 +10,7 @@ incident).
 
 import argparse
 import sys
+import tarfile
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +37,17 @@ SCHEMA = pa.schema([
 ])
 
 
+def _open_game_csv(path: Path):
+    """Old 17lands game files (e.g. AFR) are tar-wrapped inside the gzip;
+    newer ones are plain csv.gz. Return something pandas can read either way."""
+    try:
+        tf = tarfile.open(path, "r:gz")
+        member = next(m for m in tf.getmembers() if m.isfile())
+        return tf.extractfile(member)
+    except tarfile.ReadError:
+        return path
+
+
 def _sparse(mat: np.ndarray, vids: np.ndarray) -> tuple[list, list]:
     """Per-row (ids, counts) of the nonzero entries of a builds×cards matrix."""
     ids, counts = [], []
@@ -53,7 +65,7 @@ def extract(set_code: str, event: str = "PremierDraft") -> Path:
     csv_path = dest_path(set_code, event, kind="game")
     out_path = PROCESSED_DIR / set_code / "decks.parquet"
 
-    header = pd.read_csv(csv_path, nrows=0).columns
+    header = pd.read_csv(_open_game_csv(csv_path), nrows=0).columns
     deck_cols = [c for c in header if c.startswith("deck_")]
     side_cols = [c for c in header if c.startswith("sideboard_")]
     deck_vids = np.array([nti[norm_name(c[len("deck_"):])] for c in deck_cols],
@@ -61,11 +73,18 @@ def extract(set_code: str, event: str = "PremierDraft") -> Path:
     side_vids = np.array([nti[norm_name(c[len("sideboard_"):])] for c in side_cols],
                          dtype=np.int16)
 
-    usecols = ["draft_id", "build_index", "won", "user_game_win_rate_bucket"] \
-        + deck_cols + side_cols
+    # older game files name the WR bucket differently (AFR era)
+    wr_col = next((c for c in ("user_game_win_rate_bucket",
+                               "user_win_rate_bucket") if c in header), None)
+    usecols = ["draft_id", "build_index", "won"] \
+        + ([wr_col] if wr_col else []) + deck_cols + side_cols
     dtypes = {c: "float32" for c in deck_cols + side_cols}
     dtypes["won"] = "bool"  # fail loudly if the column ever isn't True/False
-    df = pd.read_csv(csv_path, usecols=usecols, dtype=dtypes)
+    df = pd.read_csv(_open_game_csv(csv_path), usecols=usecols, dtype=dtypes)
+    if wr_col is None:
+        df["user_game_win_rate_bucket"] = np.nan
+    elif wr_col != "user_game_win_rate_bucket":
+        df = df.rename(columns={wr_col: "user_game_win_rate_bucket"})
     df["build_index"] = df["build_index"].fillna(0).astype(np.int8)
 
     # Deck vectors are identical within a (draft, build): aggregate games/wins,

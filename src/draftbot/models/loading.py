@@ -94,9 +94,12 @@ def deck_builder_from_checkpoint(ckpt: Path, set_code: str, stats: str):
         from draftbot.train.loop import feature_tensor
         feats, _ = feature_tensor(set_code, stats, ckpt_dir=None, scaler=scaler)
     model = build_deck_model(cfg, feats)
-    model.load_state_dict(state["model"])
-    with torch.no_grad():  # the checkpoint buffer holds TRAIN-time features;
-        model.card_features.copy_(feats)  # eval-time stat mode must win
+    sd = state["model"]
+    # the checkpoint buffer holds TRAIN-time features (possibly another set's,
+    # for corpus checkpoints); the freshly built eval-set table must win
+    sd.pop("card_features", None)
+    model.load_state_dict(sd, strict=False)
+    model.card_features = feats
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     return TorchDeckBuilder(model, f"{cfg['exp']}@{ckpt_file.stem}",
                             device_auto(), land_flags(cards),

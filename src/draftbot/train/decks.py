@@ -144,14 +144,19 @@ class DeckTrainer:
         else:
             self.weights = np.ones(self.train_arr.n_builds, dtype=np.float32)
 
+        pre_scaler = None
+        if cfg.get("scaler_from"):  # fine-tune: reuse the pretrain-corpus scaler
+            from draftbot.data.features import load_scaler
+            pre_scaler = load_scaler(Path(cfg["scaler_from"]) / "scaler.json")
         feats, _ = feature_tensor(set_code, cfg.get("stats", "full"),
-                                  ckpt_dir=self.dir)
+                                  ckpt_dir=self.dir, scaler=pre_scaler)
         self.model = build_deck_model(cfg, feats).to(self.device)
-        if cfg.get("init_from"):  # warm-start (stage 2 from the stage-1 best)
+        if cfg.get("init_from"):  # warm-start (stage 2 / corpus-pretrained trunk)
             src = Path(cfg["init_from"])
             src_file = src if src.is_file() else src / "best.pt"
             state = torch.load(src_file, map_location=self.device,
                                weights_only=False)["model"]
+            state.pop("card_features", None)  # this set's table, not the source's
             own = self.model.state_dict()
             loadable = {k: v for k, v in state.items()
                         if k in own and own[k].shape == v.shape}
@@ -310,6 +315,178 @@ class DeckTrainer:
         return self.best_val
 
 
+def _deck_feature_pair(code: str, scaler: dict):
+    """(full, statless) feature tensors for one set, corpus-scaled, in the
+    exact layout feature_tensor produces (bias row + is_bias column) so
+    pretrained encoder weights transfer to the fine-tune/eval paths."""
+    from draftbot.data.corpus import _statless
+    from draftbot.data.features import assemble
+
+    full_df, _ = assemble(code, "full", scaler=scaler, fit=False)
+
+    def tensorize(df):
+        t = torch.tensor(df.to_numpy(np.float32))
+        t = torch.cat([t, torch.zeros(1, t.shape[1])], 0)
+        b = torch.zeros(t.shape[0], 1)
+        b[-1, 0] = 1.0
+        return torch.cat([t, b], 1)
+
+    return tensorize(full_df), tensorize(_statless(full_df))
+
+
+class DeckCorpusTrainer:
+    """Multi-set pool→deck pretraining (DECK_DATA_PLAN scale-out).
+
+    Single-set batches sampled ∝ manifest weight × n_builds, per-set feature
+    tables swapped into the model buffer, stat-dropout p per batch (day-0 as a
+    trained condition). Scaler fit on corpus sets only; holdout sets touch
+    nothing. Selection: mean val trophy-F1 over fixed CORPUS proxy sets (the
+    holdout never drives selection)."""
+
+    PROXY_SETS = ["EOE", "BLB", "KTK", "SNC"]
+
+    def __init__(self, cfg: dict, resume: bool = False):
+        from draftbot.data.corpus import fit_corpus_scaler
+        from draftbot.data.features import save_scaler
+
+        self.cfg = cfg
+        self.exp = cfg["exp"]
+        self.dir = CKPT_ROOT / self.exp
+        self.dir.mkdir(parents=True, exist_ok=True)
+        random.seed(cfg.get("seed", 17))
+        np.random.seed(cfg.get("seed", 17))
+        torch.manual_seed(cfg.get("seed", 17))
+        self.device = device_auto()
+
+        manifest = yaml.safe_load(Path(cfg["corpus"]).read_text())
+        codes = list(manifest["sets"])
+        banned = set(manifest.get("quarantine", [])) | set(manifest.get("holdout", []))
+        assert not (banned & set(codes)), f"banned sets in corpus: {banned & set(codes)}"
+        scaler = fit_corpus_scaler(codes)
+        save_scaler(scaler, self.dir / "scaler.json")
+
+        self.bundles = []
+        for code in codes:
+            splits = load_splits(code)
+            arr = load_deck_arrays(code, set(splits["random"]["train"]))
+            cards = pd.read_parquet(PROCESSED_DIR / code / "cards.parquet")
+            is_land = land_flags(cards)
+            if cfg.get("weighting", "uniform") == "win_skill":
+                w = example_weights(arr.meta)
+            else:
+                w = np.ones(arr.n_builds, dtype=np.float32)
+            f_full, f_none = _deck_feature_pair(code, scaler)
+            self.bundles.append({
+                "code": code, "arr": arr, "targets": deck_targets(arr, is_land),
+                "weights": w, "is_land": is_land,
+                "f_full": f_full.to(self.device), "f_none": f_none.to(self.device),
+                "sample_w": manifest["sets"][code].get("weight", 1.0) * arr.n_builds,
+            })
+            print(f"loaded {code}: {arr.n_builds} builds", flush=True)
+
+        self.val_proxies = []
+        for code in self.PROXY_SETS:
+            splits = load_splits(code)
+            win = load_deck_arrays(code, set(splits["random"]["val"]),
+                                   view="winningest")
+            trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
+            b = next(x for x in self.bundles if x["code"] == code)
+            self.val_proxies.append((code, trophy, b["is_land"], b["f_full"]))
+
+        self.model = build_deck_model(cfg, self.bundles[0]["f_full"]).to(self.device)
+        n_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        total = sum(b["arr"].n_builds for b in self.bundles)
+        print(f"{self.exp}: {n_params/1e6:.2f}M params, {len(self.bundles)} sets, "
+              f"{total:,} builds on {self.device}")
+
+        self.optim = torch.optim.AdamW(self.model.parameters(), lr=1.0,
+                                       betas=(0.9, 0.98), eps=1e-9,
+                                       weight_decay=cfg.get("weight_decay", 0.01))
+        self.step = 0
+        self.epoch = 0
+        self.best_val = -1.0
+        self.bad_epochs = 0
+        self.writer = SummaryWriter(log_dir=str(Path("runs") / self.exp))
+        if resume:
+            self._load(self.dir / "last.pt")
+
+    _save = DeckTrainer._save
+    _load = DeckTrainer._load
+
+    def val_f1(self) -> float:
+        from draftbot.eval.decks import _f1, _true_build, _with_basics
+        scores = []
+        for code, arr, is_land, feats in self.val_proxies:
+            self.model.card_features = feats
+            builder = TorchDeckBuilder(self.model, self.exp, self.device, is_land,
+                                       decode=self.cfg.get("decode", "greedy"))
+            builds = builder.build_all(arr)
+            scores.append(np.mean([
+                _f1(_with_basics(p["deck"], p["basics"]),
+                    _with_basics(*_true_build(arr, i)))
+                for i, p in enumerate(builds)]))
+        self.model.train()
+        return float(np.mean(scores))
+
+    def train(self) -> float:
+        cfg = self.cfg
+        bs = cfg.get("batch_builds", 256)
+        epochs = cfg.get("epochs", 10)
+        total_builds = sum(b["arr"].n_builds for b in self.bundles)
+        steps_per_epoch = int(np.ceil(total_builds / bs))
+        total_steps = steps_per_epoch * epochs
+        p_sample = np.array([b["sample_w"] for b in self.bundles], np.float64)
+        p_sample /= p_sample.sum()
+        p_statless = cfg.get("stat_dropout", 0.25)
+        clip = cfg.get("grad_clip", 1.0)
+        self.model.train()
+        start = time.time()
+        while self.epoch < epochs:
+            epoch_loss, n_batches = 0.0, 0
+            for _ in range(steps_per_epoch):
+                lr = cosine_lr(self.step, total_steps, cfg.get("lr_warmup", 1000),
+                               cfg.get("peak_lr", 3e-4))
+                for g in self.optim.param_groups:
+                    g["lr"] = lr
+                b = self.bundles[np.random.choice(len(self.bundles), p=p_sample)]
+                idx = np.random.choice(b["arr"].n_builds,
+                                       min(bs, b["arr"].n_builds), replace=False)
+                self.model.card_features = (
+                    b["f_none"] if np.random.random() < p_statless else b["f_full"])
+                self.optim.zero_grad(set_to_none=True)
+                loss = deck_loss(self.model, b["arr"], b["targets"], b["weights"],
+                                 idx, self.device, cfg)
+                loss.backward()
+                if clip:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip)
+                self.optim.step()
+                self.step += 1
+                epoch_loss += float(loss.detach())
+                n_batches += 1
+                if self.step % 200 == 0:
+                    self.writer.add_scalar("train/loss", float(loss), self.step)
+            self.epoch += 1
+            val = self.val_f1()
+            self.writer.add_scalar("val/proxy_trophy_f1", val, self.step)
+            mins = (time.time() - start) / 60
+            print(f"epoch {self.epoch}/{epochs} loss {epoch_loss/max(n_batches,1):.4f} "
+                  f"proxy_trophy {val:.4f} ({mins:.1f} min)", flush=True)
+            improved = val > self.best_val
+            if improved:
+                self.best_val = val
+                self.bad_epochs = 0
+            else:
+                self.bad_epochs += 1
+            self._save(self.dir / "last.pt")
+            if improved:
+                self._save(self.dir / "best.pt")
+            elif self.bad_epochs >= cfg.get("patience", 3):
+                print(f"early stop at epoch {self.epoch} (best {self.best_val:.4f})")
+                break
+        self.writer.close()
+        return self.best_val
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="draftbot.train.decks")
     p.add_argument("--config", required=True, type=Path)
@@ -319,7 +496,8 @@ def main(argv=None):
     ckpt_dir = CKPT_ROOT / cfg["exp"]
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(args.config, ckpt_dir / "config.yaml")
-    best = DeckTrainer(cfg, resume=args.resume).train()
+    trainer_cls = DeckCorpusTrainer if cfg.get("corpus") else DeckTrainer
+    best = trainer_cls(cfg, resume=args.resume).train()
     print(f"best val trophy-F1: {best:.4f}")
     return 0
 
