@@ -581,3 +581,16 @@ scale was flat but that was the 75k regime) + un-capped pretrain epochs, and
 (b) a measured irreducible slice — the P5.T1g "within 1pt of the same-player
 ceiling" criterion is likely unreachable for ANY population model; a
 population-fair target is ~0.92-0.93.
+
+## 2026-07-30 — HUD deck-builder handoffs written; EXP-122/123 size probe intent
+
+Owner: parallel tracks. docs/DECKBUILDER_DESIGN_BRIEF.md (Claude Design
+prompt, extends the H3 design system) + docs/DECKBUILDER_HANDOFF.md
+(engineering agent: EXP-121 one-shot, EXP-116 lock-and-rebuild, /state
+extension, lock-respect test; scope fenced to hud/).
+EXP-122: the corpus-regime scale probe from the bottleneck diagnostic —
+emb 256/6 blocks (~5M params vs 0.81M) on the 3.7M-build corpus, batch 512,
+lr 2.5e-4; targets the 26% confident-error slice. EXP-123 = its MSH
+fine-tune. Owner compute sign-off given ("kick off the size probe");
+estimated 5-7h, checkpointed/resumable. Bars: EXP-122 zero-shot(full) >
+0.8871; EXP-123 > 0.9005 by ≥ +0.2 to justify the size for production.
