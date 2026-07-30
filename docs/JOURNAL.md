@@ -415,3 +415,13 @@ Implemented both:
   which swap wins. This is the honest North-Star gap a win-aware objective
   (P5.T3-style aux head, own proposal needed) would have to close. A learned
   P(≥5 wins) deck judge is deliberately NOT snuck in (confounding).
+
+## 2026-07-30 — Hill-climb round 2 + round-3 intent
+
+- EXP-106 uniform+scale: trophy-v2 0.8942 — scale gain didn't survive uniform
+  weighting (likely wants lower LR; parked).
+- EXP-107 uniform+basics_lambda 0.5: **0.8977, new best** (+0.17 vs 102);
+  basics-L1 2.32→2.22. Both rounds' gains now sum +0.6 over EXP-101.
+Round 3 (one lever each vs EXP-107): EXP-108 decode=expected (membership mass
+sets spell count — heads stop fighting over the spell/land boundary; legality
+tests parametrized over both decodes); EXP-109 dropout 0.05.

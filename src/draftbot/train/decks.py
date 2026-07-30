@@ -168,7 +168,8 @@ class DeckTrainer:
         via the real decode. Selection uses the trophy number."""
         from draftbot.eval.decks import _f1, _true_build, _with_basics
         builder = TorchDeckBuilder(self.model, self.exp, self.device,
-                                   self.is_land)
+                                   self.is_land,
+                                   decode=self.cfg.get("decode", "greedy"))
 
         def mean_f1(arr):
             builds = builder.build_all(arr)

@@ -57,7 +57,8 @@ def test_padding_inert():
     assert (mem2[0, 3:] < -1e8).all()  # padded slots forced off
 
 
-def test_decode_always_legal():
+@pytest.mark.parametrize("decode", ["greedy", "expected"])
+def test_decode_always_legal(decode):
     rng = np.random.default_rng(7)
     is_land = rng.random(60) < 0.15
     for trial in range(200):
@@ -65,7 +66,7 @@ def test_decode_always_legal():
         ids = rng.choice(60, n, replace=False).astype(np.int16)
         counts = rng.integers(1, 4, n).astype(np.int16)
         d = build_deck(rng.random(n), rng.random(7), rng.random(5),
-                       ids, counts, is_land)
+                       ids, counts, is_land, decode=decode)
         total = sum(d["deck"].values()) + int(np.sum(d["basics"]))
         assert total == 40, f"trial {trial}: {total} cards"
         pool = dict(zip(ids.tolist(), counts.tolist()))

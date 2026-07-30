@@ -99,4 +99,5 @@ def deck_builder_from_checkpoint(ckpt: Path, set_code: str, stats: str):
         model.card_features.copy_(feats)  # eval-time stat mode must win
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     return TorchDeckBuilder(model, f"{cfg['exp']}@{ckpt_file.stem}",
-                            device_auto(), land_flags(cards))
+                            device_auto(), land_flags(cards),
+                            decode=cfg.get("decode", "greedy"))

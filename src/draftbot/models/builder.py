@@ -59,12 +59,14 @@ class TorchDeckBuilder:
     (`.name`, `.build_all(DeckArrays)`)."""
 
     def __init__(self, model: DeckBuilder, name: str, device,
-                 is_land_flags: np.ndarray, batch: int = 512):
+                 is_land_flags: np.ndarray, batch: int = 512,
+                 decode: str = "greedy"):
         self.model = model.to(device).eval()
         self.name = name
         self.device = device
         self.is_land = is_land_flags
         self.batch = batch
+        self.decode = decode
 
     @torch.no_grad()
     def build_all(self, arr) -> list[dict]:
@@ -81,16 +83,29 @@ class TorchDeckBuilder:
             for j in range(ids.shape[0]):
                 i = s + j
                 d = build_deck(member[j], land[j], basics[j], arr.pool_ids[i],
-                               arr.pool_counts[i], self.is_land)
+                               arr.pool_counts[i], self.is_land,
+                               decode=self.decode)
                 out.append({"deck": d["deck"], "basics": d["basics"]})
         return out
 
 
 def build_deck(member_probs, land_probs, basics_probs, pool_ids, pool_counts,
-               is_land_flags) -> dict:
+               is_land_flags, decode: str = "greedy") -> dict:
     """Greedy 40-card assembly from head outputs (single example, numpy).
-    Padded slots are harmless: their pool_count is 0."""
+    Padded slots are harmless: their pool_count is 0.
+
+    decode="expected": the number of nonbasic spells comes from the membership
+    head's expected count (Σ p·copies over non-lands, clamped to 20..26)
+    instead of 40 − land-head argmax — the two heads stop fighting over the
+    spell/land boundary."""
     total_lands = LAND_MIN + int(np.argmax(land_probs))
+    if decode == "expected":
+        nonland = ~is_land_flags[np.clip(pool_ids, 0, None)]
+        exp_spells = float((member_probs * pool_counts * nonland).sum())
+        n_spells_target = int(np.clip(round(exp_spells), 40 - LAND_MAX,
+                                      40 - LAND_MIN))
+    else:
+        n_spells_target = 40 - total_lands
     order = np.argsort(-member_probs)
     deck: dict[int, int] = {}
     n_spells = n_nb_lands = 0
@@ -101,7 +116,7 @@ def build_deck(member_probs, land_probs, basics_probs, pool_ids, pool_counts,
                 if n_nb_lands < total_lands and member_probs[i] > 0.5:
                     deck[cid] = deck.get(cid, 0) + 1
                     n_nb_lands += 1
-            elif n_spells < 40 - total_lands:
+            elif n_spells < n_spells_target:
                 deck[cid] = deck.get(cid, 0) + 1
                 n_spells += 1
     # basics fill whatever is left — the deck is ALWAYS exactly 40 cards even
