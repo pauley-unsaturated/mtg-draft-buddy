@@ -493,3 +493,32 @@ reveal_weight 0.2; EXP-116 cosine mask distribution. Round 6 planned:
 quality-head v2 — contrast pairs from ALL strict win-gap≥2 rebuilds (~5x
 data) and basics fed to the quality head (manabase deltas are currently
 invisible to it).
+
+## 2026-07-30 — Stage-2 hill-climb CLOSED: plateau on both bars; EXP-107 stands
+
+Rounds 5-6 one-liners:
+- EXP-114 epochs 50: 0.8946 (=112). EXP-115 reveal_weight: 0.8941 (−).
+- EXP-116 cosine mask: 0.8951 — best diffusion, still −0.26 vs EXP-107.
+- EXP-117 quality-v2 (5,351 pairs — 4×; basics visible to the head):
+  winner-pref 0.462 → **0.511 with rescore** — right direction, but ±0.05
+  noise at n=91 val pairs; bar 0.55 not demonstrably met. Trophy 0.8931.
+
+Verdict per the owner's "bars or plateau": PLATEAU on both arms.
+- trophy-F1: 7 stage-2 attempts, none beat EXP-107's 0.8977. Masked training
+  costs ~0.3pt of imitation accuracy and iterative decode doesn't win it back
+  at MSH scale.
+- winner-pref: 0.47 → 0.51 across three quality-head variants; oracle ceiling
+  is 0.738, so headroom exists, but the VAL METRIC has ±0.05 noise (91 pairs;
+  test has 70) — the metric itself lacks the power to gate at 0.55. Flagged
+  to owner: winner-pref needs a bigger pair population (cross-set corpus
+  decks would give ~30-60k pairs) before it can be a gate.
+
+Production recommendation unchanged: **EXP-107** (stage-1) for the HUD build
+suggester. **EXP-116** is the best diffusion checkpoint and the only one with
+partial-deck conditioning (lock cards, resample rest) — worth wiring into the
+HUD for interactive rebuilds despite −0.26pt, since conditioning is the
+feature stage-1 cannot do at all.
+Backlog (promoted via this entry): (a) win-aware fine-tune of stage-1
+directly (skip diffusion); (b) corpus-scale deck pretrain (the day-1 builder
+path per DECK_DATA_PLAN scale-out) — also fixes winner-pref metric power;
+(c) HUD integration of EXP-116 conditioning.
