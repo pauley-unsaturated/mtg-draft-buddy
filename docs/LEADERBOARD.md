@@ -48,3 +48,4 @@ winning builds). Target = rebuild-ceiling (human self-agreement).
 | — | gih-top23 | MSH | val | full | 0.7601 | 0.7362 | 0.7736 | 0.7699 | 2.221 | 6.499 | baseline | a980284 | <1min | 2026-07-30 |
 | — | gih-in-lane-build | MSH | val | full | 0.7844 | 0.7765 | 0.7915 | 0.7933 | 2.658 | 6.474 | baseline | a980284 | <1min | 2026-07-30 |
 | — | rebuild-ceiling | MSH | val | full | 0.9545 | 0.9469 | 0.9627 | 0.9608 | 0.162 | 0.973 | baseline | a980284 | <1min | 2026-07-30 |
+| EXP-101 | EXP-101@best | MSH | val | full | 0.8829 | 0.8625 | 0.8920 | 0.8894 | 0.247 | 2.492 | configs/EXP-101.yaml | 8433d49 | 2.3min | 2026-07-30 |

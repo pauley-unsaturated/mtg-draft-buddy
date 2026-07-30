@@ -368,3 +368,19 @@ decode-legality ×200, loss finiteness, overfit canary F1≥0.80 in 8s).
 EXP-101: the journal design-note architecture at emb 128/3 blocks (~0.9M
 params), stats full, weighting (1+n_wins)·soft_skill. Must beat
 gih-in-lane-build (val F1 0.7844 / trophy 0.7915) to graduate M5.2.
+
+## 2026-07-29 — EXP-101 results (P5.T1e done): first model already 10pt over heuristics
+
+EXP-101 val: **deck-F1 0.8829, trophy-F1 0.8920, lands-MAE 0.247, legal 1.000**
+(2.3 min, ~0.9M params). +9.9pt F1 over gih-in-lane-build; gap to the rebuild
+ceiling: 7.1pt trophy-F1. Analysis:
+- F1 RISES with build wins (0.874 @ 0-win → 0.894 @ 7-win) — win-weighted
+  imitation is aligning with winners, not just the average.
+- Copy-error decomposition per deck: spells 6.55, basics 2.49, nonbasic lands
+  0.34. The manabase problem the heuristics fail (2.2–2.7 lands-MAE) is
+  essentially solved; remaining headroom = boundary spell slots + basics split.
+- **Tapland regression check: 0/200 predicted decks contain an off-color
+  nonbasic land.** The Subterranean Cavern error class is dead at EXP-101.
+Hill-climb ladder launched: EXP-102 uniform weighting, EXP-103 stats none
+(day-0 builder), EXP-104 scale (emb 256/4 blocks), EXP-105 hard ≥5-win
+curation.
