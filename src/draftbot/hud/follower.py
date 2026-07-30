@@ -82,6 +82,15 @@ def parse_statement(buffer: str) -> list:
     obj = _first_json(buffer)
     if obj is None:
         return []
+    # Arena wraps request payloads: {"id": ..., "request": "<json string>"}
+    # (seen live 2026-07-29 on EventPlayerDraftMakePick)
+    if isinstance(obj.get("request"), str):
+        try:
+            inner = json.loads(obj["request"])
+            if isinstance(inner, dict):
+                obj = inner
+        except json.JSONDecodeError:
+            pass
     # order mirrors the 17lands client's dispatch
     if "DraftStatus" in obj:
         if obj.get("DraftStatus") == "PickNext" and "DraftPack" in obj:

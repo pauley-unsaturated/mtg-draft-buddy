@@ -21,6 +21,38 @@ from draftbot.hud.follower import (DraftCompleted, DraftJoined, PackSeen,
                                    PickMade, set_code_from_event)
 
 
+_GLOBAL_GRP_INDEX: dict[int, str] | None = None
+
+
+def global_grp_index() -> dict[int, str]:
+    """arena grpId → set code, across every onboarded set. Lets the HUD infer
+    the set from pack contents alone — real Arena logs don't reliably emit a
+    parseable join message (seen live 2026-07-29: bare-JSON Course lines)."""
+    global _GLOBAL_GRP_INDEX
+    if _GLOBAL_GRP_INDEX is None:
+        idx: dict[int, str] = {}
+        for pq in PROCESSED_DIR.glob("*/cards.parquet"):
+            set_code = pq.parent.name
+            for grp in grp_to_vocab(set_code):
+                idx.setdefault(grp, set_code)
+        _GLOBAL_GRP_INDEX = idx
+    return _GLOBAL_GRP_INDEX
+
+
+def infer_set(card_ids: list[int]) -> str | None:
+    """Majority-vote the set from a pack's grpIds."""
+    idx = global_grp_index()
+    votes: dict[str, int] = {}
+    for g in card_ids:
+        code = idx.get(int(g))
+        if code:
+            votes[code] = votes.get(code, 0) + 1
+    if not votes:
+        return None
+    best = max(votes, key=votes.get)  # type: ignore[arg-type]
+    return best if votes[best] >= max(2, len(card_ids) // 2) else None
+
+
 def grp_to_vocab(set_code: str) -> dict[int, int]:
     """arena grpId → our card id, via the cached Scryfall set JSONs."""
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
@@ -89,6 +121,11 @@ class DraftState:
         if isinstance(ev, PackSeen):
             if ev.event_name:
                 self._ensure_set(ev.event_name)
+            if self._grp_map is None:  # no join message parsed — infer from pack
+                code = infer_set(ev.card_ids)
+                if code:
+                    self.set_code = code
+                    self._grp_map = grp_to_vocab(code)
             if self._grp_map is None:
                 return False
             if ev.draft_id != self.draft_id:  # new draft begins
