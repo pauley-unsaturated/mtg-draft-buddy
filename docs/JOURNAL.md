@@ -396,3 +396,22 @@ curation.
 Round 2: EXP-106 = uniform + scale (combine the two positive levers);
 EXP-107 = uniform + basics_lambda 0.5 (attack the 2.3 basics-L1 bucket).
 Best-known: EXP-102.
+
+## 2026-07-30 — Owner refinement: trophy eval v2 + winner-pref metric
+
+Owner: "take pools that would trophy and make decks that did trophy", and
+"building a deck that also gets ≥5 wins is another excellent metric".
+Implemented both:
+- **trophy-F1 v2**: eval pools = drafts where ANY build hit ≥5 wins; target =
+  the winningest build (was: most-played build filtered by its own wins). The
+  practical delta is rebuild drafts where the FIX won — v2 targets the fix.
+  Numbers barely moved (EXP-102 0.8960 v1 → 0.8960 v2; ceiling 0.9627→0.9625)
+  because 81% of drafts are single-build, but the metric now says what we
+  mean. Trainer selection switched to v2.
+- **winner-pref**: P(model's deck strictly closer to the winning than the
+  losing build of the same pool), ties 0.5, no learned judge. FINDING: every
+  builder sits at ~0.5 (91 val pairs, ±0.05 noise) — even random-legal
+  (0.527). Winner-vs-loser deltas are 1–2 card swaps; imitation F1 can't see
+  which swap wins. This is the honest North-Star gap a win-aware objective
+  (P5.T3-style aux head, own proposal needed) would have to close. A learned
+  P(≥5 wins) deck judge is deliberately NOT snuck in (confounding).

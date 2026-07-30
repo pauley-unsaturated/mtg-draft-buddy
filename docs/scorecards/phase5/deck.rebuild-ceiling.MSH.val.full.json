@@ -5,20 +5,23 @@
  "stats": "full",
  "scheme": "random",
  "task": "deck",
- "git_sha": "a980284",
- "generated_at": "2026-07-30T01:47:50+00:00",
+ "trophy_view": "winningest-build v2 (owner refinement 2026-07-30)",
+ "git_sha": "66dd1e6",
+ "generated_at": "2026-07-30T02:28:59+00:00",
  "n_builds": 630,
- "n_trophy": 171,
+ "n_trophy": 91,
  "metrics": {
   "deck_f1": 0.9545098242258585,
   "nonbasic_f1": 0.946904277827228,
-  "trophy_f1": 0.9627431269101134,
-  "trophy7_f1": 0.9640958524406519,
+  "trophy_f1": 0.9624994030134949,
+  "trophy7_f1": 0.975,
+  "trophy_lands_mae": 0.18681318681318682,
   "win_weighted_f1": 0.9608480042895174,
   "lands_mae": 0.1619047619047619,
   "basics_l1": 0.973015873015873,
   "curve_l1": 1.7174603174603174,
-  "legal_rate": 0.9174603174603174
+  "legal_rate": 0.9153952843273232,
+  "winner_pref": NaN
  },
  "slices": {
   "f1_by_wins": {
@@ -31,5 +34,6 @@
    "6": 0.9578334890846707,
    "7": 0.9640958524406519
   }
- }
+ },
+ "n_winner_pairs": 0
 }

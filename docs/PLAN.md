@@ -158,8 +158,15 @@ numbered **EXP-1NN** (own leaderboard section). Stat mode for stage 1 is `full`
 **Deck metrics (canonical for this phase):**
 - **deck-F1**: per-build multiset F1 between predicted and actual 40-card
   maindeck **including basics** (primary); nonbasic-only F1 reported alongside.
-- **trophy-F1**: deck-F1 restricted to eval builds with ≥5 wins (the
-  upper-echelon target subset; 7-win slice reported too).
+- **trophy-F1** (v2, owner refinement 2026-07-30): take pools that DID trophy
+  (some build reached ≥5 wins) and score against the specific build that won
+  (winningest per draft; ties → most played). 7-win slice reported too.
+  v1 (most-played build, filtered ≥5 wins) retired 2026-07-30.
+- **winner-pref** (owner metric 2026-07-30): among drafts holding a ≥5-win
+  build AND a strictly-worse build of the same pool, fraction where the
+  model's deck is strictly closer (full-deck F1) to the build that won;
+  ties 0.5. The deterministic stand-in for "would this deck win" — a learned
+  P(≥5 wins) judge is a separate proposal (confounding; see P5.T3 caveats).
 - **lands-MAE**: |predicted total lands − actual| (basics + nonbasic lands).
 - **basics-L1**: L1 distance between predicted and actual W/U/B/R/G counts.
 - **curve-L1**: L1 between cmc histograms (0–7+, nonbasic spells only).

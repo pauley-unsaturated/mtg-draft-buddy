@@ -113,7 +113,7 @@ def test_overfit_canary():
     from draftbot.train.decks import deck_loss, deck_targets
 
     cards = pd.read_parquet("data/processed/MSH/cards.parquet")
-    arr = load_deck_arrays("MSH", eval_builds=True)
+    arr = load_deck_arrays("MSH", view="most_played")
     keep = np.arange(200)
     arr = type(arr)(pool_ids=arr.pool_ids[keep], pool_counts=arr.pool_counts[keep],
                     deck_counts=arr.deck_counts[keep], basics=arr.basics[keep],

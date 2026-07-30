@@ -53,3 +53,21 @@ winning builds). Target = rebuild-ceiling (human self-agreement).
 | EXP-103 | EXP-103@best | MSH | val | none | 0.8802 | 0.8567 | 0.8885 | 0.8864 | 0.244 | 2.412 | configs/EXP-103.yaml | 2fedfd8 | 2.4min | 2026-07-30 |
 | EXP-104 | EXP-104@best | MSH | val | full | 0.8852 | 0.8659 | 0.8946 | 0.8920 | 0.273 | 2.467 | configs/EXP-104.yaml | 2fedfd8 | 3.6min | 2026-07-30 |
 | EXP-105 | EXP-105@best | MSH | val | full | 0.8814 | 0.8621 | 0.8906 | 0.8881 | 0.248 | 2.589 | configs/EXP-105.yaml | 2fedfd8 | 1.4min | 2026-07-30 |
+
+### Deck builder — trophy-F1 v2 + winner-pref (owner refinement 2026-07-30; supersedes rows above)
+
+Trophy-F1 v2: pools that DID trophy, target = the build that won. Winner-pref:
+model's deck strictly closer to the winning than the losing build of the same
+pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
+
+| EXP | Model | Set | Split | Stats | F1 | NB-F1 | Trophy-F1v2 | Win-pref | Win-wtd F1 | Lands-MAE | Basics-L1 | Config | SHA | Wall-clock | Date |
+|-----|-------|-----|-------|-------|----|-------|-------------|----------|------------|-----------|-----------|--------|-----|------------|------|
+| — | random-legal | MSH | val | full | 0.6821 | 0.6076 | 0.6880 | 0.527 | 0.6829 | 1.826 | 6.539 | baseline | 66dd1e6 | <1min | 2026-07-30 |
+| — | gih-top23 | MSH | val | full | 0.7601 | 0.7362 | 0.7736 | 0.495 | 0.7699 | 2.221 | 6.499 | baseline | 66dd1e6 | <1min | 2026-07-30 |
+| — | gih-in-lane-build | MSH | val | full | 0.7844 | 0.7765 | 0.7915 | 0.473 | 0.7933 | 2.658 | 6.474 | baseline | 66dd1e6 | <1min | 2026-07-30 |
+| — | rebuild-ceiling | MSH | val | full | 0.9545 | 0.9469 | 0.9625 | nan | 0.9608 | 0.162 | 0.973 | baseline | 66dd1e6 | <1min | 2026-07-30 |
+| EXP-101 | EXP-101@best | MSH | val | full | 0.8829 | 0.8625 | 0.8920 | 0.467 | 0.8894 | 0.247 | 2.492 | configs/EXP-101.yaml | 66dd1e6 | 2.3min | 2026-07-30 |
+| EXP-102 | EXP-102@best | MSH | val | full | 0.8879 | 0.8672 | 0.8960 | 0.478 | 0.8942 | 0.248 | 2.320 | configs/EXP-102.yaml | 66dd1e6 | 2.5min | 2026-07-30 |
+| EXP-103 | EXP-103@best | MSH | val | none | 0.8802 | 0.8567 | 0.8885 | 0.522 | 0.8864 | 0.244 | 2.412 | configs/EXP-103.yaml | 66dd1e6 | 2.4min | 2026-07-30 |
+| EXP-104 | EXP-104@best | MSH | val | full | 0.8852 | 0.8659 | 0.8946 | 0.462 | 0.8920 | 0.273 | 2.467 | configs/EXP-104.yaml | 66dd1e6 | 3.6min | 2026-07-30 |
+| EXP-105 | EXP-105@best | MSH | val | full | 0.8814 | 0.8621 | 0.8906 | 0.484 | 0.8881 | 0.248 | 2.589 | configs/EXP-105.yaml | 66dd1e6 | 1.4min | 2026-07-30 |

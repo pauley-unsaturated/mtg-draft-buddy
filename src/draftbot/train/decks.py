@@ -98,8 +98,10 @@ class DeckTrainer:
 
         self.train_arr = load_deck_arrays(set_code,
                                           set(splits["random"]["train"]))
-        self.val_arr = load_deck_arrays(set_code, set(splits["random"]["val"]),
-                                        eval_builds=True)
+        val_ids = set(splits["random"]["val"])
+        self.val_arr = load_deck_arrays(set_code, val_ids, view="most_played")
+        win = load_deck_arrays(set_code, val_ids, view="winningest")
+        self.val_trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
         cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
         self.cards = cards
         self.is_land = land_flags(cards)
@@ -162,18 +164,22 @@ class DeckTrainer:
                          self.weights, b, self.device, self.cfg)
 
     def val_f1(self) -> tuple[float, float]:
-        """(overall deck-F1, trophy-F1) on val eval-builds via the real decode."""
+        """(overall deck-F1 on most-played, trophy-F1 v2 on winningest ≥5)
+        via the real decode. Selection uses the trophy number."""
         from draftbot.eval.decks import _f1, _true_build, _with_basics
         builder = TorchDeckBuilder(self.model, self.exp, self.device,
                                    self.is_land)
-        builds = builder.build_all(self.val_arr)
-        f1s = np.array([
-            _f1(_with_basics(p["deck"], p["basics"]),
-                _with_basics(*_true_build(self.val_arr, i)))
-            for i, p in enumerate(builds)])
-        trophy = self.val_arr.meta["n_wins"].to_numpy() >= 5
+
+        def mean_f1(arr):
+            builds = builder.build_all(arr)
+            return float(np.mean([
+                _f1(_with_basics(p["deck"], p["basics"]),
+                    _with_basics(*_true_build(arr, i)))
+                for i, p in enumerate(builds)]))
+
+        overall, trophy = mean_f1(self.val_arr), mean_f1(self.val_trophy)
         self.model.train()
-        return float(f1s.mean()), float(f1s[trophy].mean())
+        return overall, trophy
 
     def train(self) -> float:
         cfg = self.cfg

@@ -37,6 +37,16 @@ class DeckArrays:
     def max_pool(self) -> int:
         return self.pool_ids.shape[1]
 
+    def take(self, idx) -> "DeckArrays":
+        """Row subset by boolean mask or integer indices."""
+        idx = np.asarray(idx)
+        if idx.dtype == bool:
+            idx = np.where(idx)[0]
+        return DeckArrays(
+            pool_ids=self.pool_ids[idx], pool_counts=self.pool_counts[idx],
+            deck_counts=self.deck_counts[idx], basics=self.basics[idx],
+            meta=self.meta.iloc[idx].reset_index(drop=True))
+
 
 def most_played(df: pd.DataFrame) -> pd.DataFrame:
     """One build per draft: most games; ties broken by lowest build_index."""
@@ -45,13 +55,29 @@ def most_played(df: pd.DataFrame) -> pd.DataFrame:
             .drop_duplicates("draft_id"))
 
 
+def winningest(df: pd.DataFrame) -> pd.DataFrame:
+    """One build per draft: the deck that DID the winning (owner refinement
+    2026-07-30: trophy eval targets the build that trophied, not the
+    most-played one). Ties → most games, then lowest build_index."""
+    return (df.sort_values(["draft_id", "n_wins", "n_games", "build_index"],
+                           ascending=[True, False, False, True],
+                           kind="mergesort")
+            .drop_duplicates("draft_id"))
+
+
 def load_deck_arrays(set_code: str, draft_ids: set[str] | None = None,
-                     eval_builds: bool = False) -> DeckArrays:
+                     view: str = "all") -> DeckArrays:
+    """view: 'all' builds (training) | 'most_played' (typical-play eval) |
+    'winningest' (trophy eval)."""
     df = pd.read_parquet(PROCESSED_DIR / set_code / "decks.parquet")
     if draft_ids is not None:
         df = df[df["draft_id"].isin(draft_ids)]
-    if eval_builds:
+    if view == "most_played":
         df = most_played(df)
+    elif view == "winningest":
+        df = winningest(df)
+    elif view != "all":
+        raise ValueError(f"unknown view {view!r}")
     return arrays_from_deck_df(df)
 
 
