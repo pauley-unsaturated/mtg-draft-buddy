@@ -435,3 +435,31 @@ Round 4 (last before declared plateau): EXP-110 = EXP-107 + emb256/4blk at
 peak_lr 2e-4, epochs 40 — "scale with the LR it wants" (EXP-106's flat result
 looked like an LR artifact). If < +0.2: plateau documented → run the P5.T1g
 gate with the best model.
+
+## 2026-07-30 — Stage-1 plateau declared; P5.T1g gate run once on test: NOT passed
+
+EXP-110 (scale + tuned LR) 0.8959 — third consecutive < +0.2pt → plateau per
+P5.T1f DoD. Stage-1 best: **EXP-107** (uniform weighting, basics_lambda 0.5).
+
+Test gate (frozen in docs/scorecards/phase5/):
+- trophy-F1 v2 **0.8968** vs ceiling 0.9654 → 6.9pt short — **FAIL** (needs ≤1.0)
+- lands-MAE 0.254 (≤0.8) — **PASS**
+- tapland check 1/200 (spec: 0; val 0/200) — marginal fail, 0.5% residual
+- winner-pref 0.386 (70 test pairs; val 0.473) — imitation is blind to which
+  1–2-card swap wins, consistently.
+
+Verdict: stage-1 per-card membership has taken pure imitation to ~0.90 F1 —
++11pt over the HUD-style heuristic, manabases solved, the Subterranean Cavern
+class ~dead — but the last 7 points to "build the deck that trophies" are
+JOINT structure (which 23 spells cohere; which swap wins), invisible to
+independent per-card membership.
+
+**Stage-2 proposal (needs owner sign-off per Phase-5 rules):** masked discrete
+diffusion over deck slots, pool-conditioned with partial-deck conditioning
+(lock cards, resample rest — the interactive HUD builder UX), trunk
+warm-started from EXP-107; PLUS a win-aware auxiliary (P5.T3-style event-wins
+head, confounding addressed by within-pool contrast pairs — exactly the
+winner-pref construction). Success bars for the pilot (≤2h): val trophy-F1
++1.5pt over EXP-107 AND winner-pref ≥ 0.55. If the diffusion pilot can't beat
+the one-shot model, the honest conclusion is that the remaining gap is pilot
+variance, not build skill.
