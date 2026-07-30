@@ -75,48 +75,60 @@ def _first_json(buffer: str) -> dict | None:
     return obj if isinstance(obj, dict) else None
 
 
-def parse_statement(buffer: str):
-    """Turn one buffered log statement into an event, or None."""
+def parse_statement(buffer: str) -> list:
+    """Turn one buffered log statement into 0..n events."""
     if not any(tok in buffer for tok in RELEVANT_TOKENS):
-        return None
+        return []
     obj = _first_json(buffer)
     if obj is None:
-        return None
+        return []
     # order mirrors the 17lands client's dispatch
     if "DraftStatus" in obj:
         if obj.get("DraftStatus") == "PickNext" and "DraftPack" in obj:
-            return PackSeen(draft_id=obj.get("DraftId", obj.get("EventName", "bot")),
-                           pack_number=int(obj.get("PackNumber", 0)),
-                           pick_number=int(obj.get("PickNumber", 0)),
-                           card_ids=[int(x) for x in obj["DraftPack"]],
-                           source="DraftStatus",
-                           event_name=obj.get("EventName"))
-        return None
+            return [PackSeen(draft_id=obj.get("DraftId", obj.get("EventName", "bot")),
+                             pack_number=int(obj.get("PackNumber", 0)),
+                             pick_number=int(obj.get("PickNumber", 0)),
+                             card_ids=[int(x) for x in obj["DraftPack"]],
+                             source="DraftStatus",
+                             event_name=obj.get("EventName"))]
+        return []
     if "LogBusinessEvents" in buffer and "PickGrpId" in obj:
-        return PickMade(draft_id=obj["DraftId"],
-                        pack_number=int(obj["PackNumber"]),
-                        pick_number=int(obj["PickNumber"]),
-                        grp_ids=[int(obj["PickGrpId"])],
-                        auto_pick=bool(obj.get("AutoPick", False)),
-                        source="LogBusiness")
+        # combined message: the pack AND the pick. On Arena builds where
+        # Draft.Notify skips P1P1, this is the ONLY source for that pack —
+        # emit PackSeen first so DraftState sees pack-then-pick.
+        out = []
+        if obj.get("CardsInPack"):
+            out.append(PackSeen(draft_id=obj["DraftId"],
+                                pack_number=int(obj["PackNumber"]),
+                                pick_number=int(obj["PickNumber"]),
+                                card_ids=[int(x) for x in obj["CardsInPack"]],
+                                source="LogBusiness",
+                                event_name=obj.get("EventId")))
+        out.append(PickMade(draft_id=obj["DraftId"],
+                            pack_number=int(obj["PackNumber"]),
+                            pick_number=int(obj["PickNumber"]),
+                            grp_ids=[int(obj["PickGrpId"])],
+                            auto_pick=bool(obj.get("AutoPick", False)),
+                            source="LogBusiness"))
+        return out
     if "Draft.Notify " in buffer and "method" not in obj and "PackCards" in obj:
-        return PackSeen(draft_id=obj["draftId"],
-                        pack_number=int(obj["SelfPack"]),
-                        pick_number=int(obj["SelfPick"]),
-                        card_ids=[int(x) for x in str(obj["PackCards"]).split(",") if x],
-                        source="Draft.Notify")
+        return [PackSeen(draft_id=obj["draftId"],
+                         pack_number=int(obj["SelfPack"]),
+                         pick_number=int(obj["SelfPick"]),
+                         card_ids=[int(x) for x in str(obj["PackCards"]).split(",") if x],
+                         source="Draft.Notify")]
     if "EventPlayerDraftMakePick" in buffer and "GrpIds" in obj:
-        return PickMade(draft_id=obj["DraftId"],
-                        pack_number=int(obj["Pack"]),
-                        pick_number=int(obj["Pick"]),
-                        grp_ids=[int(x) for x in obj["GrpIds"]],
-                        source="EventPlayerDraftMakePick")
+        return [PickMade(draft_id=obj["DraftId"],
+                         pack_number=int(obj["Pack"]),
+                         pick_number=int(obj["Pick"]),
+                         grp_ids=[int(x) for x in obj["GrpIds"]],
+                         source="EventPlayerDraftMakePick")]
     if "Draft_CompleteDraft" in buffer and "DraftId" in obj:
-        return DraftCompleted(draft_id=obj["DraftId"])
+        return [DraftCompleted(draft_id=obj["DraftId"])]
     if "Event_Join" in buffer and "EventName" in obj:
-        return DraftJoined(event_name=obj["EventName"],
-                           draft_id=obj.get("DraftId"))
-    return None
+        return [DraftJoined(event_name=obj["EventName"],
+                            draft_id=obj.get("DraftId"))]
+    return []
 
 
 def set_code_from_event(event_name: str | None) -> str | None:
@@ -137,12 +149,12 @@ class LogFollower:
         self.from_start = from_start  # scan history → mid-draft attach works
         self._buffer: list[str] = []
 
-    def _flush(self):
+    def _flush(self) -> list:
         if not self._buffer:
-            return None
-        event = parse_statement("\n".join(self._buffer))
+            return []
+        events = parse_statement("\n".join(self._buffer))
         self._buffer = []
-        return event
+        return events
 
     def events(self) -> Iterator[object]:
         f = open(self.path, "r", errors="replace")
@@ -153,18 +165,16 @@ class LogFollower:
             line = f.readline()
             if line:
                 if LOG_START.match(line):
-                    ev = self._flush()
-                    if ev is not None:
-                        yield ev
+                    yield from self._flush()
                 self._buffer.append(line.rstrip("\n"))
                 continue
             # EOF: a multi-line JSON may still be mid-write — only flush if the
             # buffered statement already parses; otherwise keep accumulating.
             if self._buffer:
-                ev = parse_statement("\n".join(self._buffer))
-                if ev is not None:
+                events = parse_statement("\n".join(self._buffer))
+                if events:
                     self._buffer = []
-                    yield ev
+                    yield from events
             if self.replay:
                 return
             time.sleep(self.poll_seconds)

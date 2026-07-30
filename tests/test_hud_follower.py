@@ -106,3 +106,24 @@ def test_mid_draft_attach(tmp_path):
     packs, prev, pos = state.arrays()
     assert pos == len(state.packs) - 1
     assert len(state.picks) in (pos, pos + 1)
+
+
+def test_combined_logbusiness_emits_pack_then_pick():
+    """P1P1 on current Arena arrives ONLY via the combined message — the parser
+    must emit PackSeen before PickMade from a single statement."""
+    import json as _json
+
+    from draftbot.hud.follower import parse_statement
+
+    stmt = ('[UnityCrossThreadLogger]LogBusinessEvents '
+            + _json.dumps({"DraftId": "d1", "EventId": "PremierDraft_MSH_20260626",
+                           "PackNumber": 1, "PickNumber": 1,
+                           "CardsInPack": [105093, 104936, 105094],
+                           "PickGrpId": 105094, "AutoPick": False,
+                           "TimeRemainingOnPick": 52.3}))
+    events = parse_statement(stmt)
+    assert len(events) == 2
+    assert isinstance(events[0], PackSeen)
+    assert events[0].card_ids == [105093, 104936, 105094]
+    assert isinstance(events[1], PickMade)
+    assert events[1].grp_ids == [105094]
