@@ -37,7 +37,8 @@ from draftbot.train.loop import CKPT_ROOT, cosine_lr, feature_tensor
 def build_deck_model(cfg: dict, card_features: torch.Tensor) -> DeckBuilder:
     return DeckBuilder(card_features, emb_dim=cfg.get("emb_dim", 128),
                        heads=cfg.get("heads", 8), blocks=cfg.get("blocks", 3),
-                       dropout=cfg.get("dropout", 0.1))
+                       dropout=cfg.get("dropout", 0.1),
+                       diffusion=cfg.get("model", "builder") == "diffusion")
 
 
 def deck_targets(arr, is_land: np.ndarray):
@@ -58,14 +59,28 @@ def deck_targets(arr, is_land: np.ndarray):
 
 def deck_loss(model, arr, targets, weights: np.ndarray, b: np.ndarray,
               device, cfg: dict) -> torch.Tensor:
-    """The full training objective for a batch of build indices `b`."""
+    """The full training objective for a batch of build indices `b`.
+    Diffusion models: reveal a random fraction of true deck counts as
+    conditioning and take the membership loss on the MASKED slots only."""
+    from draftbot.models.builder import MASK_STATE
+
     frac, pool_w, land_cls, basics_frac = targets
     ids = torch.from_numpy(arr.pool_ids[b].astype(np.int64)).to(device)
     cnt = torch.from_numpy(arr.pool_counts[b].astype(np.int64)).to(device)
     ex_w = torch.from_numpy(weights[b]).to(device)
-
-    member, land, basics = model(ids, cnt, ids == -1)
     slot_w = torch.from_numpy(pool_w[b]).to(device) * ex_w[:, None]
+
+    if getattr(model, "diffusion", False):
+        deck_cnt = torch.from_numpy(arr.deck_counts[b].astype(np.int64)).to(device)
+        rho = torch.rand(ids.shape[0], device=device)
+        reveal = torch.rand_like(slot_w) >= rho[:, None]
+        state = torch.where(reveal & (ids >= 0),
+                            deck_cnt.clamp(0, MASK_STATE - 1),
+                            torch.full_like(ids, MASK_STATE))
+        member, land, basics = model(ids, cnt, ids == -1, state)
+        slot_w = slot_w * (~reveal)  # score only what was hidden
+    else:
+        member, land, basics = model(ids, cnt, ids == -1)
     target = torch.from_numpy(frac[b]).to(device)
     bce = torch.nn.functional.binary_cross_entropy_with_logits(
         member.clamp(min=-30), target, reduction="none")  # pads sit at -1e9
@@ -124,6 +139,30 @@ class DeckTrainer:
         feats, _ = feature_tensor(set_code, cfg.get("stats", "full"),
                                   ckpt_dir=self.dir)
         self.model = build_deck_model(cfg, feats).to(self.device)
+        if cfg.get("init_from"):  # warm-start (stage 2 from the stage-1 best)
+            src = Path(cfg["init_from"])
+            src_file = src if src.is_file() else src / "best.pt"
+            state = torch.load(src_file, map_location=self.device,
+                               weights_only=False)["model"]
+            own = self.model.state_dict()
+            loadable = {k: v for k, v in state.items()
+                        if k in own and own[k].shape == v.shape}
+            self.model.load_state_dict(loadable, strict=False)
+            print(f"init_from {src_file}: {len(loadable)} tensors loaded")
+
+        self.pairs = None
+        if cfg.get("quality_lambda"):  # within-pool winner/loser contrast
+            m = self.train_arr.meta
+            multi = m[m["draft_id"].duplicated(keep=False)]
+            pairs = []
+            for _, g in multi.groupby("draft_id", sort=False):
+                order = g.sort_values(["n_wins", "n_games", "build_index"],
+                                      ascending=[False, False, True])
+                w, l = order.index[0], order.index[-1]
+                if m.loc[w, "n_wins"] >= 5 and m.loc[l, "n_wins"] < m.loc[w, "n_wins"]:
+                    pairs.append((w, l))
+            self.pairs = np.array(pairs) if pairs else None
+            print(f"quality contrast pairs: {0 if self.pairs is None else len(self.pairs)}")
         n_params = sum(p.numel() for p in self.model.parameters()
                        if p.requires_grad)
         print(f"{self.exp}: {n_params / 1e6:.2f}M params on {self.device}, "
@@ -160,8 +199,28 @@ class DeckTrainer:
         print(f"resumed at epoch {self.epoch}, best {self.best_val:.4f}")
 
     def _loss(self, b: np.ndarray) -> torch.Tensor:
-        return deck_loss(self.model, self.train_arr, self.targets,
+        loss = deck_loss(self.model, self.train_arr, self.targets,
                          self.weights, b, self.device, self.cfg)
+        if self.pairs is not None:
+            loss = loss + self.cfg["quality_lambda"] * self._quality_loss()
+        return loss
+
+    def _quality_loss(self) -> torch.Tensor:
+        """Margin ranking: the build that won ≥5 must outscore the same pool's
+        strictly-worse build (the winner-pref construction, as a loss)."""
+        from draftbot.models.builder import MASK_STATE
+        arr = self.train_arr
+        k = min(64, len(self.pairs))
+        sel = self.pairs[np.random.choice(len(self.pairs), k, replace=False)]
+        rows = np.concatenate([sel[:, 0], sel[:, 1]])
+        ids = torch.from_numpy(arr.pool_ids[rows].astype(np.int64)).to(self.device)
+        cnt = torch.from_numpy(arr.pool_counts[rows].astype(np.int64)).to(self.device)
+        state = torch.from_numpy(arr.deck_counts[rows].astype(np.int64)) \
+            .to(self.device).clamp(0, MASK_STATE - 1) \
+            .masked_fill(ids == -1, MASK_STATE)
+        q = self.model.quality(ids, cnt, ids == -1, state)
+        margin = self.cfg.get("quality_margin", 0.2)
+        return torch.relu(margin - (q[:k] - q[k:])).mean()
 
     def val_f1(self) -> tuple[float, float]:
         """(overall deck-F1 on most-played, trophy-F1 v2 on winningest ≥5)
@@ -169,7 +228,8 @@ class DeckTrainer:
         from draftbot.eval.decks import _f1, _true_build, _with_basics
         builder = TorchDeckBuilder(self.model, self.exp, self.device,
                                    self.is_land,
-                                   decode=self.cfg.get("decode", "greedy"))
+                                   decode=self.cfg.get("decode", "greedy"),
+                                   steps=self.cfg.get("steps", 8))
 
         def mean_f1(arr):
             builds = builder.build_all(arr)

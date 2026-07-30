@@ -463,3 +463,16 @@ winner-pref construction). Success bars for the pilot (≤2h): val trophy-F1
 +1.5pt over EXP-107 AND winner-pref ≥ 0.55. If the diffusion pilot can't beat
 the one-shot model, the honest conclusion is that the remaining gap is pilot
 variance, not build skill.
+
+## 2026-07-30 — Stage 2 APPROVED by owner; EXP-111..113 intent
+
+Owner sign-off on the stage-2 proposal; same hill-climb regime, keep levers
+that pull weight. Implemented: DeckBuilder(diffusion=True) — zero-init
+deck-state embedding (warm-start no-op proven by test), masked-count training
+objective, deterministic MaskGIT decode (cosine commit schedule), quality head
++ within-pool winner/loser margin loss, rescore decode (deterministic
+candidates × quality head). 6 new tests, 11/11 green.
+- EXP-111: diffusion + maskgit decode, warm-start EXP-107.
+- EXP-112: + quality contrast loss (the winner-pref play, as training signal).
+- EXP-113: + rescore decode (quality head picks among candidates).
+Bars (pre-declared): val trophy-F1 ≥ 0.9127 AND winner-pref ≥ 0.55.

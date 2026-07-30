@@ -19,11 +19,21 @@ from draftbot.data.dataset import PAD
 from draftbot.models.modern import PMA, SetAttentionBlock
 
 LAND_MIN, LAND_MAX = 14, 20
+MASK_STATE = 8  # deck_state: 0..7 = revealed maindeck count; 8 = masked
 
 
 class DeckBuilder(nn.Module):
+    """Stage 1 (diffusion=False): one-shot membership from the pool alone.
+
+    Stage 2 (diffusion=True, PLAN P5 stage-2 proposal): adds a per-slot
+    deck_state embedding (revealed count or MASK) — trained with random
+    masking, decoded by iterative commit — plus a deck-quality head trained on
+    within-pool winner/loser contrast pairs. state_emb is zero-initialized so
+    a warm-started model with everything masked reproduces stage-1 exactly."""
+
     def __init__(self, card_features: torch.Tensor, emb_dim: int = 128,
-                 heads: int = 8, blocks: int = 3, dropout: float = 0.1):
+                 heads: int = 8, blocks: int = 3, dropout: float = 0.1,
+                 diffusion: bool = False):
         super().__init__()
         self.register_buffer("card_features", card_features)  # (n_cards, F)
         f = card_features.shape[1]
@@ -38,35 +48,101 @@ class DeckBuilder(nn.Module):
         self.land_head = nn.Linear(emb_dim, LAND_MAX - LAND_MIN + 1)
         self.basics_head = nn.Linear(emb_dim, 5)
         self.drop = nn.Dropout(dropout)
+        self.diffusion = diffusion
+        if diffusion:
+            self.state_emb = nn.Embedding(MASK_STATE + 1, emb_dim)
+            nn.init.zeros_(self.state_emb.weight)
+            self.quality_head = nn.Sequential(
+                nn.Linear(emb_dim, emb_dim), nn.SiLU(), nn.Linear(emb_dim, 1))
 
-    def forward(self, pool_ids: torch.Tensor, pool_counts: torch.Tensor,
-                pad_mask: torch.Tensor):
-        """pool_ids (B,N) vocab ids, pool_counts (B,N) copies, pad_mask (B,N)
-        True where padded. Returns (member_logits (B,N), land_logits (B,7),
-        basics_logits (B,5))."""
+    def _trunk(self, pool_ids, pool_counts, pad_mask, deck_state=None):
         x = self.encoder(self.card_features[pool_ids.clamp(min=0)])
         x = x + self.count_emb(pool_counts.clamp(min=0, max=7))
+        if self.diffusion:
+            if deck_state is None:
+                deck_state = torch.full_like(pool_ids, MASK_STATE)
+            x = x + self.state_emb(deck_state.clamp(min=0, max=MASK_STATE))
         x = self.drop(x)
         for blk in self.blocks:
             x = blk(x, pad_mask)
-        pooled = self.pma(x, pad_mask)
+        return x, self.pma(x, pad_mask)
+
+    def forward(self, pool_ids: torch.Tensor, pool_counts: torch.Tensor,
+                pad_mask: torch.Tensor, deck_state: torch.Tensor | None = None):
+        """pool_ids (B,N) vocab ids, pool_counts (B,N) copies, pad_mask (B,N)
+        True where padded, deck_state (B,N) revealed counts / MASK_STATE
+        (diffusion models only). Returns (member_logits (B,N),
+        land_logits (B,7), basics_logits (B,5))."""
+        x, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state)
         member = self.member_head(x)[..., 0].masked_fill(pad_mask, -1e9)
         return member, self.land_head(pooled), self.basics_head(pooled)
 
+    def quality(self, pool_ids, pool_counts, pad_mask, deck_state):
+        """(B,) deck-quality score of a FULLY revealed build (win-aware aux)."""
+        _, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state)
+        return self.quality_head(pooled)[..., 0]
+
 
 class TorchDeckBuilder:
-    """Batched inference + greedy decode; implements the deck-eval interface
-    (`.name`, `.build_all(DeckArrays)`)."""
+    """Batched inference + decode; implements the deck-eval interface
+    (`.name`, `.build_all(DeckArrays)`).
+
+    decode: greedy | expected — one forward pass through build_deck.
+            maskgit — iterative commit (diffusion models): cosine schedule
+              commits the most-confident slots each step, re-runs conditioned
+              on them; deterministic, no sampling (eval stays seed-free).
+            rescore — assemble deterministic candidates (one-shot + maskgit at
+              several step counts), score each with the quality head, keep the
+              best per pool (the winner-pref play)."""
 
     def __init__(self, model: DeckBuilder, name: str, device,
                  is_land_flags: np.ndarray, batch: int = 512,
-                 decode: str = "greedy"):
+                 decode: str = "greedy", steps: int = 8):
         self.model = model.to(device).eval()
         self.name = name
         self.device = device
         self.is_land = is_land_flags
         self.batch = batch
         self.decode = decode
+        self.steps = steps
+
+    @torch.no_grad()
+    def _heads(self, ids, cnt, pad, state=None):
+        member, land, basics = self.model(ids, cnt, pad, state)
+        return (torch.sigmoid(member), torch.softmax(land, -1),
+                torch.softmax(basics, -1))
+
+    @torch.no_grad()
+    def _maskgit_probs(self, ids, cnt, pad, steps: int):
+        import math
+        state = torch.full_like(ids, MASK_STATE)
+        committed = torch.zeros_like(pad)
+        n_valid = (~pad).sum(1)
+        member, land, basics = self._heads(ids, cnt, pad, state)
+        for t in range(steps - 1):
+            frac_masked = math.cos(math.pi / 2 * (t + 1) / steps)
+            target = (n_valid.float() * (1 - frac_masked)).ceil().long()
+            conf = (member - 0.5).abs().masked_fill(pad | committed, -1.0)
+            ranks = conf.argsort(1, descending=True).argsort(1)
+            quota = (target - committed.sum(1)).clamp(min=0)
+            newly = (ranks < quota[:, None]) & ~pad & ~committed
+            counts = torch.round(member * cnt).long().clamp(0, MASK_STATE - 1)
+            state = torch.where(newly, counts, state)
+            committed |= newly
+            member, land, basics = self._heads(ids, cnt, pad, state)
+        pinned = torch.where(committed,
+                             state.float() / cnt.clamp(min=1).float(), member)
+        return pinned, land, basics
+
+    def _assemble(self, member, land, basics, arr, s, decode="greedy"):
+        out = []
+        m, ln, b = member.cpu().numpy(), land.cpu().numpy(), basics.cpu().numpy()
+        for j in range(m.shape[0]):
+            i = s + j
+            d = build_deck(m[j], ln[j], b[j], arr.pool_ids[i],
+                           arr.pool_counts[i], self.is_land, decode=decode)
+            out.append({"deck": d["deck"], "basics": d["basics"]})
+        return out
 
     @torch.no_grad()
     def build_all(self, arr) -> list[dict]:
@@ -76,16 +152,31 @@ class TorchDeckBuilder:
                                    .astype(np.int64)).to(self.device)
             cnt = torch.from_numpy(arr.pool_counts[s:s + self.batch]
                                    .astype(np.int64)).to(self.device)
-            member, land, basics = self.model(ids, cnt, ids == PAD)
-            member = torch.sigmoid(member).cpu().numpy()
-            land = torch.softmax(land, -1).cpu().numpy()
-            basics = torch.softmax(basics, -1).cpu().numpy()
-            for j in range(ids.shape[0]):
-                i = s + j
-                d = build_deck(member[j], land[j], basics[j], arr.pool_ids[i],
-                               arr.pool_counts[i], self.is_land,
-                               decode=self.decode)
-                out.append({"deck": d["deck"], "basics": d["basics"]})
+            pad = ids == PAD
+            if self.decode == "maskgit":
+                probs = self._maskgit_probs(ids, cnt, pad, self.steps)
+                out.extend(self._assemble(*probs, arr, s))
+            elif self.decode == "rescore":
+                cands = [self._assemble(*self._heads(ids, cnt, pad), arr, s)]
+                for T in (2, 4, self.steps, self.steps + 4):
+                    cands.append(self._assemble(
+                        *self._maskgit_probs(ids, cnt, pad, T), arr, s))
+                scores = []
+                for cand in cands:
+                    state = torch.zeros_like(ids)
+                    for j, pred in enumerate(cand):
+                        row = {int(k): int(v) for k, v in pred["deck"].items()}
+                        st = [row.get(int(c), 0) for c in arr.pool_ids[s + j]]
+                        state[j] = torch.tensor(st, device=self.device)
+                    state = state.clamp(0, MASK_STATE - 1).masked_fill(
+                        pad, MASK_STATE)
+                    scores.append(self.model.quality(ids, cnt, pad, state))
+                best = torch.stack(scores).argmax(0).cpu().numpy()
+                out.extend(cands[int(best[j])][j] for j in range(ids.shape[0]))
+            else:
+                member, land, basics = self._heads(ids, cnt, pad)
+                out.extend(self._assemble(member, land, basics, arr, s,
+                                          decode=self.decode))
         return out
 
 

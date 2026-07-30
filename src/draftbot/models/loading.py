@@ -100,4 +100,5 @@ def deck_builder_from_checkpoint(ckpt: Path, set_code: str, stats: str):
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     return TorchDeckBuilder(model, f"{cfg['exp']}@{ckpt_file.stem}",
                             device_auto(), land_flags(cards),
-                            decode=cfg.get("decode", "greedy"))
+                            decode=cfg.get("decode", "greedy"),
+                            steps=cfg.get("steps", 8))

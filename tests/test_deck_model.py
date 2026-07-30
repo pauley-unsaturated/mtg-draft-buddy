@@ -139,3 +139,105 @@ def test_overfit_canary():
                       _with_basics(*_true_build(arr, i)))
                   for i, p in enumerate(builds)])
     assert f1 >= 0.80, f"canary F1 {f1:.3f}"
+
+
+# ----------------------------------------------------------- stage 2 tests ---
+def _tiny_diffusion(n_cards=30, f=12, emb=32, seed=0):
+    torch.manual_seed(seed)
+    return DeckBuilder(torch.randn(n_cards + 1, f), emb_dim=emb, heads=4,
+                       blocks=2, dropout=0.0, diffusion=True)
+
+
+def test_diffusion_all_masked_equals_stage1():
+    """Zero-init state_emb + all-masked state must reproduce stage-1 exactly
+    (the warm-start no-op guarantee)."""
+    torch.manual_seed(3)
+    d = _tiny_diffusion(seed=3).eval()
+    s1 = tiny_model(seed=99).eval()
+    s1.load_state_dict({k: v for k, v in d.state_dict().items()
+                        if k in s1.state_dict()}, strict=True)
+    ids = torch.tensor([[3, 7, 9, 12, PAD]])
+    cnt = torch.tensor([[1, 2, 1, 1, 0]])
+    with torch.no_grad():
+        out_d = d(ids, cnt, ids == PAD)          # state defaults to all-MASK
+        out_s = s1(ids, cnt, ids == PAD)
+    for a, b in zip(out_d, out_s):
+        assert torch.allclose(a, b, atol=1e-5)
+
+
+def test_revealed_state_conditions_output():
+    from draftbot.models.builder import MASK_STATE
+    d = _tiny_diffusion().eval()
+    torch.manual_seed(1)
+    with torch.no_grad():
+        d.state_emb.weight.normal_()             # give the state pathway teeth
+    ids = torch.tensor([[3, 7, 9, 12, 15]])
+    cnt = torch.tensor([[1, 1, 1, 1, 1]])
+    masked = torch.full_like(ids, MASK_STATE)
+    revealed = masked.clone()
+    revealed[0, 0] = 1                           # slot 0's decision is known
+    with torch.no_grad():
+        m1, *_ = d(ids, cnt, ids == PAD, masked)
+        m2, *_ = d(ids, cnt, ids == PAD, revealed)
+    assert not torch.allclose(m1[0, 1:], m2[0, 1:], atol=1e-6)
+
+
+@pytest.mark.parametrize("decode", ["maskgit", "rescore"])
+def test_diffusion_decode_legal(decode):
+    from draftbot.data.deck_dataset import DeckArrays
+
+    d = _tiny_diffusion()
+    rng = np.random.default_rng(11)
+    n, P = 16, 30
+    pool_ids = np.full((n, P), PAD, dtype=np.int16)
+    pool_counts = np.zeros((n, P), dtype=np.int16)
+    for i in range(n):
+        k = int(rng.integers(5, P))
+        pool_ids[i, :k] = rng.choice(30, k, replace=False)
+        pool_counts[i, :k] = rng.integers(1, 3, k)
+    arr = DeckArrays(pool_ids=pool_ids, pool_counts=pool_counts,
+                     deck_counts=np.zeros_like(pool_ids),
+                     basics=np.zeros((n, 5), np.int16),
+                     meta=pd.DataFrame({"draft_id": [str(i) for i in range(n)]}))
+    builder = TorchDeckBuilder(d, "t", torch.device("cpu"),
+                               rng.random(30) < 0.15, decode=decode, steps=6)
+    for pred in builder.build_all(arr):
+        total = sum(pred["deck"].values()) + int(np.sum(pred["basics"]))
+        assert total == 40
+        pool = dict(zip(arr.pool_ids[0].tolist(), arr.pool_counts[0].tolist()))
+
+
+def test_diffusion_and_quality_loss_finite():
+    from draftbot.data.deck_dataset import DeckArrays
+    from draftbot.models.builder import MASK_STATE
+    from draftbot.train.decks import deck_loss, deck_targets
+
+    torch.manual_seed(0)
+    d = _tiny_diffusion()
+    rng = np.random.default_rng(0)
+    n, P = 8, 20
+    pool_ids = np.full((n, P), PAD, dtype=np.int16)
+    pool_counts = np.zeros((n, P), dtype=np.int16)
+    deck_counts = np.zeros((n, P), dtype=np.int16)
+    for i in range(n):
+        k = int(rng.integers(5, P))
+        pool_ids[i, :k] = rng.choice(30, k, replace=False)
+        pool_counts[i, :k] = rng.integers(1, 3, k)
+        deck_counts[i, :k] = rng.integers(0, pool_counts[i, :k] + 1)
+    arr = DeckArrays(pool_ids=pool_ids, pool_counts=pool_counts,
+                     deck_counts=deck_counts,
+                     basics=rng.integers(0, 8, (n, 5)).astype(np.int16),
+                     meta=pd.DataFrame({"n_wins": rng.integers(0, 8, n)}))
+    targets = deck_targets(arr, np.zeros(30, dtype=bool))
+    loss = deck_loss(d, arr, targets, np.ones(n, np.float32), np.arange(n),
+                     torch.device("cpu"), {"model": "diffusion"})
+    ids = torch.from_numpy(pool_ids.astype(np.int64))
+    state = torch.from_numpy(deck_counts.astype(np.int64)) \
+        .clamp(0, MASK_STATE - 1).masked_fill(ids == PAD, MASK_STATE)
+    q = d.quality(ids, torch.from_numpy(pool_counts.astype(np.int64)),
+                  ids == PAD, state)
+    loss = loss + torch.relu(0.2 - (q[:4] - q[4:])).mean()
+    assert torch.isfinite(loss)
+    loss.backward()
+    assert all(torch.isfinite(p.grad).all() for p in d.parameters()
+               if p.grad is not None)
