@@ -425,3 +425,13 @@ Implemented both:
 Round 3 (one lever each vs EXP-107): EXP-108 decode=expected (membership mass
 sets spell count — heads stop fighting over the spell/land boundary; legality
 tests parametrized over both decodes); EXP-109 dropout 0.05.
+
+## 2026-07-30 — Round 3: both levers negative; plateau counter at 2
+
+- EXP-108 decode=expected: 0.8951 (−0.26 vs 107) — the land head's argmax was
+  already calibrated (lands-MAE 0.25); membership mass is noisier. Keep greedy.
+- EXP-109 dropout 0.05: 0.8967 (−0.10). Keep 0.1.
+Round 4 (last before declared plateau): EXP-110 = EXP-107 + emb256/4blk at
+peak_lr 2e-4, epochs 40 — "scale with the LR it wants" (EXP-106's flat result
+looked like an LR artifact). If < +0.2: plateau documented → run the P5.T1g
+gate with the best model.

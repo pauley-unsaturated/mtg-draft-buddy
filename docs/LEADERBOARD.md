@@ -73,3 +73,5 @@ pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
 | EXP-105 | EXP-105@best | MSH | val | full | 0.8814 | 0.8621 | 0.8906 | 0.484 | 0.8881 | 0.248 | 2.589 | configs/EXP-105.yaml | 66dd1e6 | 1.4min | 2026-07-30 |
 | EXP-106 | EXP-106@best | MSH | val | full | 0.8856 | 0.8673 | 0.8942 | 0.462 | 0.8919 | 0.256 | 2.504 | configs/EXP-106.yaml | 49ff68e | 5.5min | 2026-07-30 |
 | EXP-107 | EXP-107@best | MSH | val | full | 0.8893 | 0.8675 | 0.8977 | 0.473 | 0.8956 | 0.248 | 2.217 | configs/EXP-107.yaml | 49ff68e | 2.6min | 2026-07-30 |
+| EXP-108 | EXP-108@best | MSH | val | full | 0.8870 | 0.8676 | 0.8951 | 0.505 | 0.8933 | 0.678 | 2.404 | configs/EXP-108.yaml | 4c81490 | 2.7min | 2026-07-30 |
+| EXP-109 | EXP-109@best | MSH | val | full | 0.8884 | 0.8676 | 0.8967 | 0.451 | 0.8945 | 0.252 | 2.299 | configs/EXP-109.yaml | 4c81490 | 2.9min | 2026-07-30 |
