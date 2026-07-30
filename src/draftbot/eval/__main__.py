@@ -38,8 +38,18 @@ def main(argv=None):
     p.add_argument("--split", default="val", choices=["val", "test", "train"])
     p.add_argument("--stats-snapshot", default="full", choices=["none", "week1", "full"])
     p.add_argument("--scheme", default="random", choices=["random", "temporal"])
+    p.add_argument("--deck", action="store_true",
+                   help="deck-builder eval (PLAN P5.T1a) instead of draft eval")
     p.add_argument("--out", type=Path, default=None)
     args = p.parse_args(argv)
+
+    if args.deck:
+        from draftbot.eval.decks import evaluate_deck, render_deck_markdown
+        card = evaluate_deck(args.model, args.set_code, args.split,
+                             args.stats_snapshot, scheme=args.scheme,
+                             out_dir=args.out)
+        print(render_deck_markdown(card))
+        return 0
 
     scorer = resolve_scorer(args.model, args.set_code, args.stats_snapshot)
     card = evaluate(scorer, args.set_code, args.split, args.stats_snapshot,

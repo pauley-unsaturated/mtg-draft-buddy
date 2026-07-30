@@ -335,3 +335,26 @@ silently ignored the whole src/draftbot/data package since Phase 0 — every
 anchored to `/data/`; package committed as it stands (c0d3506). Nothing was
 lost (the working tree was always the source of truth), but any earlier
 checkout of this branch would not have reproduced the pipeline.
+
+## 2026-07-29 — P5 expanded into a hill-climb program; M5.1 (deck-eval suite) done
+
+Owner directive: run the deck builder like the earlier phases — auto-research
+hill-climb until builds look very close to upper-echelon decks given the pool.
+PLAN.md Phase 5 expanded in place (P5.T1a–g, EXP-1NN namespace, deck metrics
+defined). Eval suite built first, again.
+
+M5.1 results (MSH val, 3,328 eval builds, 851 trophy):
+- **rebuild-ceiling (human self-agreement): deck-F1 0.9545, trophy-F1 0.9627,
+  lands-MAE 0.162, basics-L1 0.973** ← the target.
+- gih-in-lane-build 0.7844 (best heuristic; the HUD-style builder), gih-top23
+  0.7601, random-legal 0.6821.
+- **Gate declared (P5.T1g, from the ceiling study):** test trophy-F1 within
+  1.0pt of the rebuild ceiling, lands-MAE ≤ 0.8, plus the tapland regression
+  check. Val reference ceiling: trophy-F1 0.9627.
+
+Reading the numbers: the random floor is HIGH (0.68) — building 40 from a
+~55-card pool forces overlap, so F1 progress compresses near the top; treat
+every point above 0.78 as real work. The heuristics' failure is concentrated
+in manabases: lands-MAE 2.2–2.7 and basics-L1 ~6.5 vs the ceiling's 0.16/0.97
+— they take 17 basics and pip-split, humans play ~14.8 basics + the right
+nonbasic lands. That's exactly the membership+basics+land-head territory.

@@ -71,10 +71,12 @@ def build_deck(member_probs, land_probs, basics_probs, pool_ids, pool_counts,
             elif n_spells < 40 - total_lands:
                 deck[cid] = deck.get(cid, 0) + 1
                 n_spells += 1
-    n_basics = total_lands - n_nb_lands
+    # basics fill whatever is left — the deck is ALWAYS exactly 40 cards even
+    # if the pool ran short of spells or the land head over/under-shot
+    n_basics = 40 - n_spells - n_nb_lands
     share = basics_probs / max(basics_probs.sum(), 1e-9)
     basic_counts = np.floor(share * n_basics).astype(int)
     while basic_counts.sum() < n_basics:
         basic_counts[int(np.argmax(share - basic_counts / max(n_basics, 1)))] += 1
-    return {"deck": deck, "total_lands": total_lands,
-            "basics": {c: int(n) for c, n in zip("WUBRG", basic_counts) if n}}
+    return {"deck": deck, "total_lands": n_basics + n_nb_lands,
+            "basics": basic_counts}

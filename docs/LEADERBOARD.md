@@ -35,3 +35,16 @@ Primary metric: top-1 on MSH test; headline: expert-subset top-1.
 | EXP-042-1k | EXP-042-1k@best | MSH | val | full | 0.6634 | 0.9360 | 0.6899 | +0.0414 | 0.8851 | configs/EXP-042-1k.yaml | 6959f47 | grid | 2026-07-29 |
 | EXP-042-5k | EXP-042-5k@best | MSH | val | full | 0.6672 | 0.9386 | 0.6924 | +0.0395 | 0.8732 | configs/EXP-042-5k.yaml | 6959f47 | grid | 2026-07-29 |
 | EXP-042-all | EXP-042-all@best | MSH | val | full | 0.6733 | 0.9405 | 0.6987 | +0.0399 | 0.8611 | configs/EXP-042-all.yaml | 6959f47 | grid | 2026-07-29 |
+
+## Deck builder (Phase 5, EXP-1NN)
+
+Deck rows from `python -m draftbot.eval --deck`. Primary: deck-F1 (full 40 incl.
+basics) on MSH val; headline: trophy-F1 (eval builds with ≥5 wins — agree with
+winning builds). Target = rebuild-ceiling (human self-agreement).
+
+| EXP | Model | Set | Split | Stats | F1 | NB-F1 | Trophy-F1 | Win-wtd F1 | Lands-MAE | Basics-L1 | Config | SHA | Wall-clock | Date |
+|-----|-------|-----|-------|-------|----|-------|-----------|------------|-----------|-----------|--------|-----|------------|------|
+| — | random-legal | MSH | val | full | 0.6821 | 0.6076 | 0.6880 | 0.6829 | 1.826 | 6.539 | baseline | a980284 | <1min | 2026-07-30 |
+| — | gih-top23 | MSH | val | full | 0.7601 | 0.7362 | 0.7736 | 0.7699 | 2.221 | 6.499 | baseline | a980284 | <1min | 2026-07-30 |
+| — | gih-in-lane-build | MSH | val | full | 0.7844 | 0.7765 | 0.7915 | 0.7933 | 2.658 | 6.474 | baseline | a980284 | <1min | 2026-07-30 |
+| — | rebuild-ceiling | MSH | val | full | 0.9545 | 0.9469 | 0.9627 | 0.9608 | 0.162 | 0.973 | baseline | a980284 | <1min | 2026-07-30 |

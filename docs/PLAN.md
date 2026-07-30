@@ -147,7 +147,38 @@ Goal: make "new set support" a one-command, one-hour operation, and verify param
 
 ## Phase 5 — Stretch (only after P4 gate; each needs a journal proposal first)
 
-- [ ] **P5.T1** Deckbuilder modernization (the original AE is untouched `mtg/` code): pool→deck as a pointer-decoder over the pool, trained from `game_data` decks; eval = deck-composition distance + curve/land-count sanity + win-rate-weighted agreement.
+### P5.T1 Deckbuilder — expanded 2026-07-29 by owner directive into a hill-climb program
+
+Run this like Phases 1–3: eval suite first, baselines as the floor, a measured
+human ceiling as the target, then one-lever-per-EXP hill-climbing. Data layer
+already done (docs/DECK_DATA_PLAN.md, all 5 gate tests green). Deck EXPs are
+numbered **EXP-1NN** (own leaderboard section). Stat mode for stage 1 is `full`
+(MSH is long-solved); a `none`-stats builder is a hill-climb lever, not the start.
+
+**Deck metrics (canonical for this phase):**
+- **deck-F1**: per-build multiset F1 between predicted and actual 40-card
+  maindeck **including basics** (primary); nonbasic-only F1 reported alongside.
+- **trophy-F1**: deck-F1 restricted to eval builds with ≥5 wins (the
+  upper-echelon target subset; 7-win slice reported too).
+- **lands-MAE**: |predicted total lands − actual| (basics + nonbasic lands).
+- **basics-L1**: L1 distance between predicted and actual W/U/B/R/G counts.
+- **curve-L1**: L1 between cmc histograms (0–7+, nonbasic spells only).
+- Eval protocol: input = nonbasic pool (deck ∪ side from decks.parquet);
+  output = a complete legal 40-card build (legality asserted, not scored).
+  Eval builds = most-played build per draft; train uses all builds. Weighting
+  per DECK_DATA_PLAN curation: `(1 + n_wins) · soft_skill(user_win_rate)`.
+
+### Milestone M5.1 — Deck-eval suite (the eval is the deliverable, again)
+- [ ] **P5.T1a** Deck eval harness: `python -m draftbot.eval --deck --model <ckpt|baseline> --set MSH --split val|test` → scorecard JSON + md under `docs/scorecards/`, leaderboard-row helper (deck table). Slices: F1 by n_wins (0–7+), by user-WR bucket, by deck archetype colors. **DoD:** scorecards for all deck baselines on MSH val committed.
+- [ ] **P5.T1b** Baselines: `random-legal` (floor), `gih-top23` (best-rated 23 nonbasics + pip-split basics), `gih-in-lane-build` (best 2-color lane by pool GIH mass, top 23 in-lane + fixing, pip-split basics — this is ~the HUD heuristic that misfired). **DoD:** all three run over MSH val in < 2 min.
+- [ ] **P5.T1c** Ceiling study: human rebuild self-agreement — deck-F1 between builds of the same draft (pairs from multi-build drafts, weighted toward played builds), overall and for ≥5-win drafts. This number is the "very close to upper echelon" target; journal entry declares the phase gate threshold from it. **DoD:** computed by script into the journal + scorecard-style JSON in `docs/scorecards/phase5/`.
+
+### Milestone M5.2 — Stage-1 model (per-card membership; journal design note 2026-07-29)
+- [ ] **P5.T1d** Deck dataset loader (`deck_dataset.py`: pool/deck arrays + weights + split join), training loop `python -m draftbot.train.decks --config configs/EXP-1NN.yaml` (checkpoint/resume/seed per §0), correctness tests: pool-permutation invariance, pad-mask inertness, decode legality (always exactly 40, deck ⊆ pool), overfit canary (< 5 min), loss finiteness under missing-stat masks. **DoD:** tests green.
+- [ ] **P5.T1e** **EXP-101**: train the existing `DeckBuilder` (models/builder.py: set-attention trunk; membership + land-count + basics heads) with win-weighted BCE. **DoD:** beats all baselines on val deck-F1 AND trophy-F1; leaderboard rows; journal analysis of where it loses (wins-slice, land counts, splash handling).
+### Milestone M5.3 — Hill-climb loop (auto-research; mirrors P3.T5 rules)
+- [ ] **P5.T1f** Iterate: propose one lever → EXP-1NN at ≤30 min scale → promote if val deck-F1 +≥0.5pt (or trophy-F1 +≥0.5pt at neutral deck-F1). Candidate levers in priority order: weighting variants (uniform vs win-weighted vs hard ≥N-win curation); land-count/basics decode variants (argmax vs expected-count); model scale (emb 256 / more blocks); stats `none` (day-0 builder); auxiliary `main_colors` head; joint decode (re-score after partial commitment — cheap stage-2 preview). **Rules:** one lever per EXP; every EXP a leaderboard row + one-line journal conclusion; val only. **DoD:** documented plateau (3 consecutive attempts < 0.2pt).
+- [ ] **P5.T1g** Phase-5 gate, declared once on test: trophy-F1 within 1.0pt of the P5.T1c human rebuild ceiling (or above it), lands-MAE ≤ 0.8, fixture-style spot checks pass (no off-color tapland in a 2-color deck across 200 sampled val builds — the Subterranean Cavern regression check). Freeze `docs/scorecards/phase5/`; journal verdict. Stage-2 (masked discrete diffusion with partial-deck conditioning) gets its own proposal after this gate.
 - [ ] **P5.T2** Draft-table self-play sim (8 bots) for qualitative eval + fixture generation; compare bot-table pick orders to human ALSA.
 - [ ] **P5.T3** Win-rate-aware objective: auxiliary head predicting event wins from the evolving pool; investigate reweighting picks by outcome advantage (careful: heavy confounding — proposal must address it).
 - [ ] **P5.T4** Live-draft inference bridge (the MTGA_Draft_17Lands overlay protocol) for actually using the bot in Arena drafts.
