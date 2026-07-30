@@ -384,3 +384,15 @@ ceiling: 7.1pt trophy-F1. Analysis:
 Hill-climb ladder launched: EXP-102 uniform weighting, EXP-103 stats none
 (day-0 builder), EXP-104 scale (emb 256/4 blocks), EXP-105 hard ≥5-win
 curation.
+
+## 2026-07-30 — Hill-climb round 1 (EXP-102..105): one-line conclusions
+
+- EXP-102 uniform weighting: trophy 0.8960 (+0.40 vs 101) — win-weighting
+  slightly HURTS; the win signal is noisy at 4.5 games/build, echoes EXP-013.
+- EXP-103 stats none: 0.8885 (−0.35) — a day-0 builder costs only ⅓ point;
+  deck building is nearly stats-free (unlike drafting: −12pt zero-shot).
+- EXP-104 emb256/4blk: 0.8946 (+0.26) — mild scale gain.
+- EXP-105 min_wins≥5: 0.8906 (−0.14) — hard curation loses to soft, again.
+Round 2: EXP-106 = uniform + scale (combine the two positive levers);
+EXP-107 = uniform + basics_lambda 0.5 (attack the 2.3 basics-L1 bucket).
+Best-known: EXP-102.

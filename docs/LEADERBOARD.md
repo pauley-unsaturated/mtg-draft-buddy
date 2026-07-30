@@ -49,3 +49,7 @@ winning builds). Target = rebuild-ceiling (human self-agreement).
 | — | gih-in-lane-build | MSH | val | full | 0.7844 | 0.7765 | 0.7915 | 0.7933 | 2.658 | 6.474 | baseline | a980284 | <1min | 2026-07-30 |
 | — | rebuild-ceiling | MSH | val | full | 0.9545 | 0.9469 | 0.9627 | 0.9608 | 0.162 | 0.973 | baseline | a980284 | <1min | 2026-07-30 |
 | EXP-101 | EXP-101@best | MSH | val | full | 0.8829 | 0.8625 | 0.8920 | 0.8894 | 0.247 | 2.492 | configs/EXP-101.yaml | 8433d49 | 2.3min | 2026-07-30 |
+| EXP-102 | EXP-102@best | MSH | val | full | 0.8879 | 0.8672 | 0.8960 | 0.8942 | 0.248 | 2.320 | configs/EXP-102.yaml | 2fedfd8 | 2.5min | 2026-07-30 |
+| EXP-103 | EXP-103@best | MSH | val | none | 0.8802 | 0.8567 | 0.8885 | 0.8864 | 0.244 | 2.412 | configs/EXP-103.yaml | 2fedfd8 | 2.4min | 2026-07-30 |
+| EXP-104 | EXP-104@best | MSH | val | full | 0.8852 | 0.8659 | 0.8946 | 0.8920 | 0.273 | 2.467 | configs/EXP-104.yaml | 2fedfd8 | 3.6min | 2026-07-30 |
+| EXP-105 | EXP-105@best | MSH | val | full | 0.8814 | 0.8621 | 0.8906 | 0.8881 | 0.248 | 2.589 | configs/EXP-105.yaml | 2fedfd8 | 1.4min | 2026-07-30 |
