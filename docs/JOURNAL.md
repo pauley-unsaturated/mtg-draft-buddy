@@ -522,3 +522,21 @@ Backlog (promoted via this entry): (a) win-aware fine-tune of stage-1
 directly (skip diffusion); (b) corpus-scale deck pretrain (the day-1 builder
 path per DECK_DATA_PLAN scale-out) — also fixes winner-pref metric power;
 (c) HUD integration of EXP-116 conditioning.
+
+## 2026-07-30 — Deck corpus extracted: 4.48M builds / 28 sets; EXP-120 intent
+
+Owner: corpus pretrain approved. Extraction sweep findings:
+- 2021-era game files (AFR/MID/STX/VOW) are TAR-wrapped inside the gzip and
+  use `user_win_rate_bucket` — extractor now handles both.
+- AFR dropped: its game-data draft_ids join its draft logs at 0.3% (id
+  universes don't match); MID keeps 79% coverage (~110k usable builds — the
+  split join excludes the rest, hygiene intact).
+- Corpus totals 4,477,523 builds (plan estimated 1.5–2M). Size/coverage
+  outliers (LCI 98.4% in 40–43, PIO 97.3%, SNC 92% coverage) recorded;
+  oversize rows remain valid membership examples.
+EXP-120: pool→deck pretrain over 27 corpus sets (MSH HELD OUT for the day-1
+measurement), uniform weighting + basics_lambda 0.5 (the stage-1 winners),
+stat_dropout 0.25 (day-0 is a trained condition), corpus-only scaler,
+selection on corpus proxy sets (EOE/BLB/KTK/SNC — holdout never drives it).
+Bars: zero-shot MSH val (stats none) beats gih-in-lane-build (0.7915 trophy);
+EXP-121 fine-tune ≥ EXP-107 (0.8977).

@@ -3,6 +3,8 @@
 # it is corpus-eligible post-promotion; this is a science choice, not
 # quarantine. No active sandbag today; add the next Arena set to
 # `quarantine` on announcement day, BEFORE downloading its data.
+# AFR dropped 2026-07-30: game-data draft_ids join its draft logs at 0.3% —
+# the 2021-era id universes don't match; nothing usable under split hygiene.
 quarantine: []
 holdout:
   - MSH
@@ -52,8 +54,6 @@ sets:
   KTK:
     weight: 1.0
   STX:
-    weight: 1.0
-  AFR:
     weight: 1.0
   MID:
     weight: 1.0
