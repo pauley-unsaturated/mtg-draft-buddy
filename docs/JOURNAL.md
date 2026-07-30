@@ -660,3 +660,12 @@ well; the test walks the whole fixture and asserts False at picks 14 and 28.
 `uv run pytest` green (incl. new `tests/test_hud_deck.py` — 6 tests — and two
 lock-respect tests in `tests/test_deck_model.py`). No leaderboard rows (not
 eval-harness territory); PLAN.md untouched — this is HUD_PLAN H5.
+
+## 2026-07-30 — Probe 1 (scale) NEGATIVE; probe 2 (epochs) launched
+
+EXP-122 (4.81M params, 8.1h): proxy 0.9084 (+0.16 vs small) but held-out MSH
+unchanged — zero-shot full 0.8878 (=), none 0.8283 (=), fine-tuned EXP-123
+0.8998 (−0.07 vs EXP-121). One line: 6× capacity buys in-corpus fit, zero
+transfer; the confident-error slice is not capacity-starved at this scale.
+Plateau counter 1/3. Probe 2: EXP-124 = small corpus config with epoch cap
+24 (both corpus runs were still improving at cap 12); EXP-125 = its MSH FT.
