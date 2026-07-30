@@ -563,3 +563,21 @@ attempt after EXP-107's fail — §0 says escalate): 0.9005 val would still sit
 ~6pt from the 0.9625 rebuild ceiling. Owner decides whether the gate's
 ceiling criterion stands or the corpus trajectory (bigger trunk, more sets)
 gets another round first.
+
+## 2026-07-30 — Bottleneck diagnostic (owner question: evals, data, or model?)
+
+Measured on EXP-121, MSH val:
+- F1 vs winningest build 0.8821 (multi-build drafts) vs F1 vs BEST-matching
+  build of the same player: 0.8940 — build-choice ambiguity explains only
+  +1.2pt of the ~6pt gap. The eval yardstick is fairer than suspected.
+- Disagreement decomposition (5.98 slots/deck): 41% at p∈[.35,.65] — model-
+  acknowledged coin flips (irreducible 23rd-card entropy); 26% confident
+  errors (p<.2 or >.8) ≈ 1.5 slots/deck — the genuinely recoverable part.
+Verdict: data volume exhausted (all public sets consumed); evals only
+bottleneck winner-pref (91 pairs — fix = corpus-wide pairs); trophy-F1
+headroom is (a) ~1-2pt from the confident-error slice — best remaining lever
+is corpus-regime model scale (0.81M params on 3.7M builds is starved; MSH-only
+scale was flat but that was the 75k regime) + un-capped pretrain epochs, and
+(b) a measured irreducible slice — the P5.T1g "within 1pt of the same-player
+ceiling" criterion is likely unreachable for ANY population model; a
+population-fair target is ~0.92-0.93.
