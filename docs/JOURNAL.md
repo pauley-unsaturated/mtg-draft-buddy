@@ -293,3 +293,13 @@ authoritative parser fixture. Live bugs found by the draft: request-envelope
 unwrap, set inference from grpIds, variant-basic arena ids (odd/even printing
 pairs — Scryfall unique=cards collapses them; now resolved via /cards/arena,
 disk-cached). All fixed + tested same session.
+
+## 2026-07-29 — P5.T1 ACTIVATED by owner ("the Subterranean Cavern incident")
+
+The heuristic build suggester recommended a BG tapland in a WBr deck — the
+exact class of error P5.T1 exists to kill. Owner ordered the deckbuilder.
+Stage 1 (per the 2026-07-29 design note): per-card maindeck-membership model —
+pool set-transformer, membership + land-count + basics heads, trained on
+game_data winning builds (win-weighted), nonbasic lands treated as ordinary
+pool cards so bad fixing gets bad membership probability. Stage 2: masked
+discrete diffusion with partial-deck conditioning.
