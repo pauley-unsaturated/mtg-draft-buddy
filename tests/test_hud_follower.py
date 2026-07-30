@@ -127,3 +127,32 @@ def test_combined_logbusiness_emits_pack_then_pick():
     assert events[0].card_ids == [105093, 104936, 105094]
     assert isinstance(events[1], PickMade)
     assert events[1].grp_ids == [105094]
+
+
+REAL_FIXTURE = Path(__file__).parent / "fixtures" / "real_draft_msh.log"
+
+
+@needs_data
+@pytest.mark.skipif(not REAL_FIXTURE.exists(), reason="real fixture absent")
+def test_real_captured_draft_parses_completely():
+    """A REAL Arena draft log (captured 2026-07-29, sanitized to draft events)
+    must parse into a full 42-step reconstruction — the authoritative fixture."""
+    from draftbot.hud.state import DraftState
+
+    events = list(LogFollower(REAL_FIXTURE, replay=True).events())
+    packs_seen = [e for e in events if isinstance(e, PackSeen)]
+    picks_made = [e for e in events if isinstance(e, PickMade)]
+    assert len(packs_seen) == 42
+    assert len(picks_made) == 42
+    state = DraftState()
+    for ev in events:
+        state.apply(ev)
+    assert state.set_code == "MSH"          # inferred from pack contents
+    assert not state.unknown_grps
+    assert len(state.picks) == 42
+    packs, prev, pos = state.arrays()
+    assert pos == 41
+    # play-booster shape: 14 fresh cards at each pack's first pick
+    assert (packs[0, 0] != -1).sum() == 14
+    assert (packs[0, 14] != -1).sum() == 14
+    assert (packs[0, 28] != -1).sum() == 14
