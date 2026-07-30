@@ -610,3 +610,53 @@ per EXP, sequential — MPS fits one corpus run; each probe = corpus pretrain +
 Plateau rule: 3 consecutive probes with fine-tuned gain < +0.2pt. Each probe
 journaled with a one-line conclusion + leaderboard rows. Compute: each run
 kept ≤10h (§0); owner sign-off on the series given in this entry's directive.
+
+## 2026-07-30 — HUD H5 shipped: deck-builder view running the real models
+
+Owner request: finish the HUD, adapt the updated Claude Design treatment
+(deck-builder section added to the H3 pick view), and run the deck-builder
+model inside the HUD app. Design source: the "Draft Buddy MTG HUD Design"
+project's `Draft Buddy HUD.dc.html` (read via DesignSync; the plain share URL
+403s) plus its published artifact. Scope per docs/DECKBUILDER_HANDOFF.md.
+
+**What shipped**
+
+- `hud/deck.py` — `DeckAdvisor`: drafted nonbasic pool → `DeckArrays` → a
+  proposed 40. EXP-121 one-shot for the initial build, EXP-116 (diffusion) for
+  lock-conditioned rebuilds. Produces the whole panel payload: cmc groups,
+  membership confidences, the shared boundary zone, cut list, mana summary,
+  curve/pips, Arena-importable list, rebuild diff. Checkpoints load on a
+  background thread so a live pick never waits on them.
+- `models/builder.py` — the ONE permitted core touch: optional
+  `init_state=` on `TorchDeckBuilder._maskgit_probs`. Locked slots start
+  committed (count = in, 0 = out) and are returned OUTSIDE the sigmoid range,
+  so greedy assembly can never trade a lock away on a tie. `init_state=None`
+  is byte-identical to the old path (asserted).
+- `hud/server.py` — `update_deck()` merges a `deck` block into the existing
+  `/state` poll (no second loop; the deck survives pick-view updates) and
+  `POST /lock|/rebuild|/clear_locks` dispatch to an action handler.
+- `hud/panel.html` — the design's B1–B5 as a second view of the same window:
+  build (scrolling, **every card present, never summarised**, sticky cmc
+  headers, full mana cost per row as generic-numeral + WUBRG glyphs), cuts,
+  lock/rebuild diff, provisional, day-0. New tokens only: `--add`/`--cut`
+  diff rails + the five mana fills. Degrades at 240px (pips and counts drop,
+  name + confidence bar survive).
+- `hud/__main__.py` — `--deck-models` (default EXP-121,EXP-116), `--no-deck`,
+  `--provisional-from` (30). Terminal v0 prints the build too.
+
+**Verified** (`tests/fixtures/real_draft_msh.log` full replay, MSH):
+40 cards · 17 lands · legal, 7 Plains / 6 Swamp / 1 Mountain + 3 nonbasic
+lands, groups 1–5+ drops, boundary .67/.59/.52 in ↔ .38/.16 out. Lock two
+cards through the real HTTP surface → rebuild honours both (0.54s), stays
+legal at 40. Screenshots: `docs/hud/deck-{build,cuts,diff,prov,day0,narrow,
+pick_prov}.png`.
+
+**Bug caught by the end-to-end smoke, not by unit tests:** the first
+`draft_finished()` used "last pack holds ≤1 card", which is true at the end of
+EVERY booster — the HUD declared the draft over at P1P14 and proposed a
+27-card-pool build with 30 lands. Now requires 3× the observed pack size as
+well; the test walks the whole fixture and asserts False at picks 14 and 28.
+
+`uv run pytest` green (incl. new `tests/test_hud_deck.py` — 6 tests — and two
+lock-respect tests in `tests/test_deck_model.py`). No leaderboard rows (not
+eval-harness territory); PLAN.md untouched — this is HUD_PLAN H5.

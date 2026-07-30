@@ -95,6 +95,22 @@ def snapshot(state: DraftState, ranked: dict, pips: list[int], stats: str,
     }
 
 
+def draft_finished(state: DraftState) -> bool:
+    """Arena does not reliably emit Draft_CompleteDraft (absent from the
+    captured 2026-07-29 fixture), so the pack shape is the dependable signal:
+    a one-card pack ends EVERY pack, so it only means "draft over" once all
+    three boosters have been seen. Pack size comes from the draft itself —
+    MSH play boosters are 14, other sets differ."""
+    if state.completed:
+        return True
+    if not state.packs:
+        return False
+    size = max(len(p) for p in state.packs) or 1
+    return (len(state.packs) >= 3 * size
+            and len(state.packs[-1]) <= 1
+            and len(state.picks) >= len(state.packs))
+
+
 def pool_curve(state: DraftState, set_code: str) -> list[int]:
     import pandas as pd
     static = pd.read_parquet(f"data/processed/{set_code}/features.static.parquet")
@@ -108,6 +124,72 @@ def pool_curve(state: DraftState, set_code: str) -> list[int]:
     return buckets
 
 
+def make_deck_advisor(args, set_code: str):
+    """DeckAdvisor for --deck-models, or None if the checkpoints are absent."""
+    from draftbot.hud.deck import DeckAdvisor
+
+    paths = [Path(p.strip()) for p in args.deck_models.split(",") if p.strip()]
+    paths = [p for p in paths if p.exists()]
+    if not paths:
+        return None
+    return DeckAdvisor(set_code=set_code, stats=args.stats,
+                       primary_ckpt=paths[0],
+                       rebuild_ckpt=paths[1] if len(paths) > 1 else None)
+
+
+def refresh_deck(server, adv, state: DraftState, args, built: int,
+                 final: bool = False) -> int:
+    """Rebuild the deck section when the pool moved on. Returns the pick count
+    the published build reflects. `final` forces the non-provisional view (a
+    replay's log ending is itself proof the draft is over)."""
+    n = len(state.picks)
+    if adv is None or not adv.loaded or (n == built and not final):
+        return built
+    finished = final or draft_finished(state)
+    if not finished and n < args.provisional_from:
+        return built
+    server.update_deck(adv.build(state.pool_ids(), provisional=not finished))
+    return n
+
+
+def deck_action(action: str, payload: dict, adv, state: DraftState):
+    """Panel POSTs — lock toggles and rebuild — served on the HTTP thread."""
+    if action == "lock":
+        adv.set_lock(int(payload["card_id"]), payload.get("mode"))
+    elif action == "clear_locks":
+        adv.clear_locks()
+    return adv.build(state.pool_ids(), provisional=not draft_finished(state),
+                     keep_diff=True)
+
+
+def render_deck(d: dict) -> Table:
+    """Terminal v0 rendering of the proposed build."""
+    head = f"{d['n_cards']} cards · {d['n_lands']} lands"
+    if d.get("provisional"):
+        head = "provisional · " + head
+    table = Table(title=f"{head} · {d['model_id']}", expand=True,
+                  header_style="dim")
+    table.add_column("", width=3)
+    table.add_column("card")
+    table.add_column("conf", width=16)
+    for g in d["groups"]:
+        table.add_row("", Text(g["label"], style="dim"), "")
+        for c in g["cards"]:
+            table.add_row(f"{c['count']}×", Text(c["name"], style=RARITY_STYLE.get(
+                c["rarity"], "white")),
+                f"{'▓' * max(1, int(c['conf'] * 14))} {c['conf']:.2f}")
+    for side, rows in (("in", d["boundary"]["in"]), ("out", d["boundary"]["out"])):
+        for c in rows:
+            table.add_row(f"{c['count']}×" if side == "in" else "—",
+                          Text(c["name"], style="magenta"),
+                          f"{c['conf']:.2f} {side}")
+    lands = "  ".join(f"{n} {nm}" for nm, n in
+                      zip(d["basic_names"], d["basics"]) if n)
+    extra = ", ".join(c["name"] for c in d["nonbasic_lands"])
+    table.caption = f"mana  {lands}" + (f" + {extra}" if extra else "")
+    return table
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="draftbot.hud")
     ap.add_argument("--models", required=True)
@@ -118,6 +200,13 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--replay-delay", type=float, default=0.0,
                     help="seconds per pick when replaying into the window UI")
+    ap.add_argument("--deck-models",
+                    default="checkpoints/EXP-121,checkpoints/EXP-116",
+                    help="one-shot builder[,diffusion builder for lock+rebuild]")
+    ap.add_argument("--no-deck", action="store_true",
+                    help="skip the deck-builder section (HUD_PLAN H5)")
+    ap.add_argument("--provisional-from", type=int, default=30,
+                    help="pick number from which a provisional build is offered")
     args = ap.parse_args(argv)
     if args.ui == "window":
         return window_main(args)
@@ -144,10 +233,15 @@ def main(argv=None):
             ranked = advisor.rank_pack(state)
             live.update(render(state, ranked, pool_pips(state, state.set_code)),
                         refresh=True)
+    if not args.no_deck and state.set_code and draft_finished(state):
+        deck_adv = make_deck_advisor(args, state.set_code)
+        if deck_adv is not None:
+            console.print(render_deck(deck_adv.build(state.pool_ids())))
     return 0
 
 
 def window_main(args):
+    import threading
     import time
     import webbrowser
 
@@ -159,7 +253,6 @@ def window_main(args):
     opened = False
     try:  # always-on-top native window if pywebview is installed
         import webview  # noqa: F401
-        threading = __import__("threading")
         threading.Thread(target=lambda: (webview.create_window(
             "Draft Buddy", url, width=400, height=680, on_top=True),
             webview.start()), daemon=True).start()
@@ -172,9 +265,19 @@ def window_main(args):
     state = DraftState()
     advisor = None
     scorers = None
+    deck_adv = None
+    built = -1
     follower = LogFollower(args.replay or args.log, replay=args.replay is not None)
     for ev in follower.events():
         changed = state.apply(ev)
+        if state.set_code and deck_adv is None and not args.no_deck:
+            deck_adv = make_deck_advisor(args, state.set_code)
+            if deck_adv is not None:
+                # off-thread so a live pick never waits on checkpoint loading
+                threading.Thread(target=deck_adv.preload, daemon=True).start()
+                server.set_action_handler(
+                    lambda a, p: deck_action(a, p, deck_adv, state))
+        built = refresh_deck(server, deck_adv, state, args, built)
         if not changed or not isinstance(ev, PackSeen):
             continue
         if scorers is None and state.set_code:
@@ -190,6 +293,11 @@ def window_main(args):
                                args.stats, pool_curve(state, state.set_code)))
         if args.replay and args.replay_delay:
             time.sleep(args.replay_delay)
+    if deck_adv is not None and (args.replay or draft_finished(state)):
+        # a fast replay can outrun the background load — settle synchronously.
+        # A replay reaching EOF is itself the end of the draft.
+        deck_adv.preload()
+        refresh_deck(server, deck_adv, state, args, built, final=True)
     if args.replay:
         print("replay complete — panel stays up (ctrl-c to quit)")
         try:

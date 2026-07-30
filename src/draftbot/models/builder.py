@@ -120,10 +120,18 @@ class TorchDeckBuilder:
                 torch.softmax(basics, -1))
 
     @torch.no_grad()
-    def _maskgit_probs(self, ids, cnt, pad, steps: int):
+    def _maskgit_probs(self, ids, cnt, pad, steps: int, init_state=None):
+        """init_state (B,N): slots already decided before decoding starts —
+        MASK_STATE where undecided, a copy count where locked in, 0 where
+        locked out (the HUD's lock-and-rebuild). Default None = fully masked,
+        i.e. the original behaviour. Locked slots are returned outside the
+        sigmoid range so greedy assembly can never trade one away on a tie —
+        a lock is certainty, not a prediction."""
         import math
-        state = torch.full_like(ids, MASK_STATE)
-        committed = torch.zeros_like(pad)
+        state = (torch.full_like(ids, MASK_STATE) if init_state is None
+                 else init_state.clone())
+        locked = (state != MASK_STATE) & ~pad
+        committed = locked.clone()
         n_valid = (~pad).sum(1)
         member, land, basics = self._heads(ids, cnt, pad, state)
         for t in range(steps - 1):
@@ -139,6 +147,10 @@ class TorchDeckBuilder:
             member, land, basics = self._heads(ids, cnt, pad, state)
         pinned = torch.where(committed,
                              state.float() / cnt.clamp(min=1).float(), member)
+        if locked.any():
+            hard = torch.where(state > 0, torch.full_like(pinned, 2.0),
+                               torch.full_like(pinned, -1.0))
+            pinned = torch.where(locked, hard, pinned)
         return pinned, land, basics
 
     def _assemble(self, member, land, basics, arr, s, decode="greedy"):

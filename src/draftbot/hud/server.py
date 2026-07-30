@@ -3,6 +3,12 @@ and disk-cached Scryfall card art at /art/<card_id>.
 
 The follower/advisor loop runs in the caller's thread and pushes snapshots via
 HudServer.update(); the panel polls /state every 500ms.
+
+H5 adds the deck-builder section: `update_deck()` merges a `deck` block into
+the same /state payload (one poll loop, per docs/DECKBUILDER_HANDOFF.md), and
+POST /lock, /rebuild, /clear_locks drive lock-and-rebuild through an action
+handler installed by the app. Handlers run on the HTTP thread and return the
+refreshed deck payload, so the panel sees the result on its next poll.
 """
 
 import json
@@ -45,8 +51,10 @@ class HudServer:
     def __init__(self, port: int = 8787):
         self.port = port
         self._state = dict(IDLE_STATE)
+        self._deck: dict | None = None
         self._lock = threading.Lock()
         self._art_urls: dict[int, str] = {}
+        self._action = None      # set_action_handler(fn(action, payload))
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -64,9 +72,8 @@ class HudServer:
                 if self.path in ("/", "/index.html"):
                     self._send(200, PANEL.read_bytes(), "text/html")
                 elif self.path == "/state":
-                    with outer._lock:
-                        body = json.dumps(outer._state).encode()
-                    self._send(200, body, "application/json")
+                    self._send(200, json.dumps(outer.state()).encode(),
+                               "application/json")
                 elif self.path.startswith("/art/"):
                     try:
                         data = outer._art(int(self.path.split("/")[-1]))
@@ -79,10 +86,39 @@ class HudServer:
                 else:
                     self._send(404, b"not found", "text/plain")
 
+            def do_POST(self):
+                action = self.path.lstrip("/")
+                if action not in ("lock", "rebuild", "clear_locks"):
+                    self._send(404, b"not found", "text/plain")
+                    return
+                n = int(self.headers.get("Content-Length") or 0)
+                try:
+                    payload = json.loads(self.rfile.read(n) or b"{}")
+                except json.JSONDecodeError:
+                    payload = {}
+                if outer._action is None:
+                    self._send(503, b'{"error":"no deck builder"}',
+                               "application/json")
+                    return
+                try:
+                    deck = outer._action(action, payload)
+                except Exception as exc:   # never take the panel down with us
+                    self._send(500, json.dumps({"error": str(exc)}).encode(),
+                               "application/json")
+                    return
+                if deck is not None:
+                    outer.update_deck(deck)
+                self._send(200, json.dumps(outer.state()).encode(),
+                           "application/json")
+
         self._httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
     def set_art_urls(self, urls: dict[int, str]):
         self._art_urls = urls
+
+    def set_action_handler(self, fn):
+        """fn(action, payload) -> refreshed deck payload | None."""
+        self._action = fn
 
     def _art(self, card_id: int) -> bytes | None:
         cached = ART_DIR / f"{card_id}.jpg"
@@ -98,9 +134,22 @@ class HudServer:
         cached.write_bytes(resp.content)
         return resp.content
 
+    def state(self) -> dict:
+        """The merged snapshot the panel polls — pick view plus deck section."""
+        with self._lock:
+            out = dict(self._state)
+            if self._deck is not None:
+                out["deck"] = self._deck
+            return out
+
     def update(self, state: dict):
+        """Replace the pick-view snapshot; the deck section survives."""
         with self._lock:
             self._state = state
+
+    def update_deck(self, deck: dict | None):
+        with self._lock:
+            self._deck = deck
 
     def start(self):
         threading.Thread(target=self._httpd.serve_forever, daemon=True).start()

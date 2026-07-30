@@ -241,3 +241,70 @@ def test_diffusion_and_quality_loss_finite():
     loss.backward()
     assert all(torch.isfinite(p.grad).all() for p in d.parameters()
                if p.grad is not None)
+
+
+def test_maskgit_init_state_respects_locks():
+    """HUD lock-and-rebuild (HUD_PLAN H5): slots pre-decided via init_state must
+    land in the decoded 40 exactly as locked, whatever the model prefers."""
+    from draftbot.models.builder import MASK_STATE
+
+    d = _tiny_diffusion(seed=5)
+    rng = np.random.default_rng(5)
+    is_land = rng.random(30) < 0.15
+    n, P = 6, 28
+    pool_ids = np.full((n, P), PAD, dtype=np.int16)
+    pool_counts = np.zeros((n, P), dtype=np.int16)
+    for i in range(n):
+        pool_ids[i] = rng.choice(30, P, replace=False)
+        pool_counts[i] = rng.integers(1, 4, P)
+    builder = TorchDeckBuilder(d, "t", torch.device("cpu"), is_land,
+                               decode="maskgit", steps=6)
+    ids = torch.from_numpy(pool_ids.astype(np.int64))
+    cnt = torch.from_numpy(pool_counts.astype(np.int64))
+    pad = ids == PAD
+
+    # unconditioned decode first — lock AGAINST it so the test has teeth
+    base = builder._maskgit_probs(ids, cnt, pad, 6)
+    base_decks = [build_deck(base[0][i].numpy(), base[1][i].numpy(),
+                             base[2][i].numpy(), pool_ids[i], pool_counts[i],
+                             is_land) for i in range(n)]
+
+    init = torch.full_like(ids, MASK_STATE)
+    want_in, want_out = [], []
+    for i in range(n):
+        member, played = base[0][i].numpy(), base_decks[i]["deck"]
+        spells = [j for j in range(P) if not is_land[pool_ids[i, j]]]
+        cut = [j for j in spells if int(pool_ids[i, j]) not in played]
+        kept = [j for j in spells if int(pool_ids[i, j]) in played]
+        assert cut and kept, "degenerate pool — nothing to lock against"
+        lock_in = max(cut, key=lambda j: member[j])    # a card the model cut
+        lock_out = max(kept, key=lambda j: member[j])  # its favourite inclusion
+        init[i, lock_in] = int(pool_counts[i, lock_in])
+        init[i, lock_out] = 0
+        want_in.append(int(pool_ids[i, lock_in]))
+        want_out.append(int(pool_ids[i, lock_out]))
+
+    probs = builder._maskgit_probs(ids, cnt, pad, 6, init_state=init)
+    for i in range(n):
+        deck = build_deck(probs[0][i].numpy(), probs[1][i].numpy(),
+                          probs[2][i].numpy(), pool_ids[i], pool_counts[i],
+                          is_land)
+        assert want_in[i] in deck["deck"], f"row {i}: locked-in card cut"
+        assert want_out[i] not in deck["deck"], f"row {i}: locked-out card played"
+        assert sum(deck["deck"].values()) + int(np.sum(deck["basics"])) == 40
+
+
+def test_maskgit_init_state_none_is_unchanged():
+    """The new parameter is a no-op when absent (backward compatibility)."""
+    d = _tiny_diffusion(seed=2)
+    rng = np.random.default_rng(2)
+    pool_ids = rng.choice(30, (4, 20), replace=True).astype(np.int16)
+    pool_counts = rng.integers(1, 3, (4, 20)).astype(np.int16)
+    builder = TorchDeckBuilder(d, "t", torch.device("cpu"),
+                               rng.random(30) < 0.15, decode="maskgit", steps=5)
+    ids = torch.from_numpy(pool_ids.astype(np.int64))
+    cnt = torch.from_numpy(pool_counts.astype(np.int64))
+    a = builder._maskgit_probs(ids, cnt, ids == PAD, 5)
+    b = builder._maskgit_probs(ids, cnt, ids == PAD, 5, init_state=None)
+    for x, y in zip(a, b):
+        assert torch.equal(x, y)

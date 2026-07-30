@@ -15,6 +15,10 @@
     --ok:oklch(0.74 0.14 150); --err:oklch(0.62 0.16 32);
     --day0:oklch(0.84 0.09 82);
     --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    /* deck-builder additions (H5): diff rails + mana-cost glyph fills */
+    --add:oklch(0.74 0.14 150); --cut:oklch(0.62 0.16 32);
+    --mana-W:#efe9d8; --mana-U:#4a7fc1; --mana-B:#3a3546;
+    --mana-R:#c4543f; --mana-G:#4f9160;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--desk); color:var(--text);
@@ -126,6 +130,160 @@
   .errbox pre { font-family:var(--mono); font-size:10.5px; line-height:1.7; color:var(--text-3);
     background:#121418; border:1px solid #1f2328; border-radius:6px; padding:9px 10px; }
 
+  /* ---- deck-builder view (H5) ------------------------------------------ */
+  .deck { display:flex; flex-direction:column; flex:1; min-height:0; }
+  .dsum { padding:12px 12px 11px; border-bottom:1px solid var(--hairline);
+    background:linear-gradient(180deg,oklch(0.80 0.12 195 / 0.07),transparent); flex:none; }
+  .dsum.settle { animation:packIn 220ms ease-out; }
+  .dsum .top { display:flex; align-items:baseline; gap:8px; }
+  .dsum .big { font-family:var(--mono); font-size:22px; color:var(--text);
+    letter-spacing:-0.02em; }
+  .dsum .big+span { font-size:12px; color:var(--num); }
+  .dsum .big.gap { margin-left:6px; }
+  .dsum .legal { display:flex; align-items:center; gap:5px; margin-left:auto; }
+  .dsum .legal i { width:6px; height:6px; border-radius:50%; background:var(--ok); }
+  .dsum .legal b { font-family:var(--mono); font-size:9.5px; font-weight:400;
+    color:oklch(0.74 0.10 150); letter-spacing:0.06em; }
+  .dsum .legal.bad i { background:var(--err); }
+  .dsum .legal.bad b { color:oklch(0.72 0.13 32); }
+  .dsum .legal.low b { color:oklch(0.80 0.09 82); }
+  .dsum .legal.low i { background:oklch(0.78 0.11 82); }
+  .dsum .bot { display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .dsum .basics { display:flex; gap:7px; align-items:center; }
+  .dsum .basics span { display:flex; align-items:center; gap:3px; }
+  .dsum .basics i { width:9px; height:9px; border-radius:50%; }
+  .dsum .basics b { font-family:var(--mono); font-size:10px; font-weight:400; color:#d4d8dd; }
+  .dsum .basics em { font-family:var(--mono); font-size:10px; font-style:normal;
+    color:var(--text-4); margin-left:2px; }
+  .dcurve { display:flex; align-items:flex-end; gap:3px; height:18px; margin-left:auto; }
+  .dcurve i { width:6px; border-radius:1px; background:#3b4149; display:block; }
+  .dcurve i.hi { background:oklch(0.60 0.08 195); }
+  .dcurve i.hi2 { background:oklch(0.55 0.07 195); }
+
+  .dscroll { display:flex; flex-direction:column; flex:1; min-height:0;
+    overflow-y:auto; padding-right:2px; }
+  .dhead { display:flex; align-items:center; gap:8px; padding:6px 12px 4px;
+    background:#0e1013; position:sticky; top:0; z-index:1; flex:none; }
+  .dhead b { font-family:var(--mono); font-size:9px; font-weight:400;
+    letter-spacing:0.12em; color:var(--text-5); text-transform:uppercase; }
+  .dhead hr { flex:1; height:1px; border:0; background:var(--hairline); }
+  .dhead em { font-family:var(--mono); font-size:9px; font-style:normal; color:#42474d; }
+  .dhead.bnd { background:oklch(0.74 0.13 300 / 0.07);
+    border-top:1px solid oklch(0.74 0.13 300 / 0.22); position:static; }
+  .dhead.bnd b { color:oklch(0.80 0.07 300); }
+  .dhead.bnd hr { background:oklch(0.74 0.13 300 / 0.2); }
+
+  .drow { display:flex; align-items:center; gap:9px; padding:4px 12px 4px 9px;
+    border-left:2px solid var(--rail); cursor:pointer; flex:none;
+    background:linear-gradient(90deg,var(--fill) 0%,var(--fill) var(--w),transparent var(--w)); }
+  .drow:hover { background:linear-gradient(90deg,var(--fill) 0%,var(--fill) var(--w),
+    rgba(255,255,255,0.03) var(--w)); }
+  .drow .n { font-family:var(--mono); font-size:10px; color:var(--text-5);
+    width:12px; flex:none; }
+  .drow .nm { flex:1; font-size:12.5px; color:var(--text-2); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .drow .nm.rare { color:var(--rare); } .drow .nm.mythic { color:var(--mythic); }
+  .drow .cf { font-family:var(--mono); font-size:10px; color:var(--text-3); flex:none; }
+  .drow.bnd { padding-top:5px; padding-bottom:5px; }
+  .drow.out .n { color:#3f444a; }
+  .drow.out .nm { color:var(--num); }
+  .drow.out .cf { color:#7d838a; }
+  .bsplit { height:1px; margin:1px 0; flex:none;
+    background:repeating-linear-gradient(90deg,oklch(0.74 0.13 300 / 0.45) 0 4px,
+      transparent 4px 8px); }
+  .drow.locked, .drow.lockout { --w:97%; }
+  .drow .lk { font-size:10px; width:12px; flex:none; color:oklch(0.85 0.08 195); }
+  .drow .tag { font-family:var(--mono); font-size:9px; letter-spacing:0.06em;
+    flex:none; color:oklch(0.85 0.08 195); }
+  .drow.locked { --fill:oklch(0.80 0.12 195 / 0.13); border-left-color:var(--conf); }
+  .drow.lockout { --fill:oklch(0.62 0.16 32 / 0.09); border-left-color:var(--cut); }
+  .drow.lockout .lk, .drow.lockout .tag { color:oklch(0.75 0.12 32); }
+  .drow.lockout .nm { color:var(--num); text-decoration:line-through;
+    text-decoration-color:#4e545b; }
+  .drow.plus { border-left-color:oklch(0.74 0.14 150 / 0.8); }
+  .drow.plus .sg { font-family:var(--mono); font-size:11px;
+    color:oklch(0.78 0.12 150); width:10px; flex:none; }
+  .drow.minus { border-left-color:oklch(0.62 0.16 32 / 0.6); }
+  .drow.minus .sg { font-family:var(--mono); font-size:11px;
+    color:oklch(0.72 0.13 32); width:10px; flex:none; }
+  .drow.minus .nm { color:var(--num); text-decoration:line-through;
+    text-decoration-color:#4e545b; }
+
+  .mana { display:flex; gap:2px; justify-content:flex-end; min-width:42px; flex:none; }
+  .mana .mp { width:12px; height:12px; border-radius:50%; display:block; }
+  .mana .mp.gen { background:transparent; box-shadow:inset 0 0 0 1px #3a3f47;
+    color:var(--text-3); font-family:var(--mono); font-size:8.5px; line-height:1;
+    display:flex; align-items:center; justify-content:center; }
+  .mana .mp.W { background:var(--mana-W); box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.7); }
+  .mana .mp.U { background:var(--mana-U); box-shadow:inset 0 0 0 1.5px rgba(226,236,255,0.5); }
+  .mana .mp.B { background:var(--mana-B); box-shadow:inset 0 0 0 1.5px rgba(226,228,238,0.55); }
+  .mana .mp.R { background:var(--mana-R); box-shadow:inset 0 0 0 1.5px rgba(255,230,226,0.5); }
+  .mana .mp.G { background:var(--mana-G); box-shadow:inset 0 0 0 1.5px rgba(226,245,230,0.5); }
+  .drow.bnd .mana, .drow.out .mana { opacity:0.85; }
+
+  .dmore { display:flex; align-items:center; gap:9px; padding:6px 12px 7px 22px;
+    border-top:1px solid var(--hairline-dim); cursor:pointer; flex:none; }
+  .dmore span { flex:1; font-size:11px; color:#5b6067; }
+  .dmore em { font-family:var(--mono); font-size:9px; font-style:normal; color:#484d54; }
+  .dmana { display:flex; align-items:center; gap:10px; padding:9px 12px;
+    background:#0e1013; border-top:1px solid var(--hairline); flex:none; }
+  .dmana b { font-family:var(--mono); font-size:9px; font-weight:400;
+    letter-spacing:0.12em; color:var(--text-5); text-transform:uppercase; }
+  .dmana .bl { display:flex; align-items:center; gap:4px; }
+  .dmana .bl i { width:10px; height:10px; border-radius:50%; }
+  .dmana .bl em { font-family:var(--mono); font-size:12px; font-style:normal;
+    color:var(--text-2); }
+  .dmana .nb { font-size:11px; color:#7d838a; margin-left:2px; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .dact { display:flex; gap:8px; padding:9px 12px; background:#0c0e11;
+    border-top:1px solid var(--hairline); flex:none; }
+  .dact button { flex:1; text-align:center; font-size:12px; color:var(--num);
+    background:transparent; border:1px solid #262a30; border-radius:5px;
+    padding:7px 0; cursor:pointer; font-family:inherit; }
+  .dact button.prim { font-weight:500; color:#0a0c0e; background:oklch(0.80 0.10 195);
+    border-color:transparent; }
+  .dact button.narrow { flex:none; padding:7px 12px; }
+  .dact button:active { transform:translateY(0.5px); }
+
+  .dbar { display:flex; align-items:center; gap:8px; padding:6px 12px; flex:none;
+    background:oklch(0.80 0.12 195 / 0.10);
+    border-bottom:1px solid oklch(0.80 0.12 195 / 0.25); animation:packIn 220ms ease-out; }
+  .dbar b { font-family:var(--mono); font-size:9px; font-weight:400;
+    letter-spacing:0.1em; color:oklch(0.85 0.08 195); text-transform:uppercase; }
+  .dbar span { font-size:11px; color:#7d838a; margin-left:auto; }
+  .dnav { display:flex; align-items:center; gap:9px; padding:6px 12px; flex:none;
+    background:#0e1013; border-bottom:1px solid var(--hairline); cursor:pointer; }
+  .dnav span { font-size:11px; color:#7d838a; }
+  .dnav em { font-family:var(--mono); font-size:9.5px; font-style:normal;
+    color:var(--text-5); margin-left:auto; }
+  .dnote { display:flex; align-items:center; gap:9px; padding:6px 12px 7px 22px;
+    border-top:1px solid var(--hairline-dim); font-size:11px; color:#5b6067; flex:none; }
+
+  /* provisional (B4) */
+  .prov { display:flex; flex-direction:column; flex:1; min-height:0; }
+  .prov .chip { display:flex; align-items:center; gap:8px; padding:6px 12px;
+    background:#141519; border-bottom:1px solid #1d2025; flex:none; }
+  .prov .chip b { font-family:var(--mono); font-size:9px; font-weight:400;
+    letter-spacing:0.08em; color:var(--num); text-transform:uppercase;
+    border:1px dashed #3a3f47; border-radius:3px; padding:1px 5px; }
+  .prov .chip span { font-size:11px; color:#5b6067; }
+  .prov .body { padding:12px; display:flex; flex-direction:column; gap:10px;
+    opacity:0.78; flex:none; }
+  .prov .body .top { display:flex; align-items:baseline; gap:8px; }
+  .prov .body .top b { font-family:var(--mono); font-size:18px; font-weight:400;
+    color:#c3c8ce; }
+  .prov .body .top b.gap { margin-left:6px; }
+  .prov .body .top span { font-size:11px; color:var(--text-4); }
+  .prov .weak { font-size:11.5px; line-height:1.5; color:#7d838a; }
+  .prov .weak em { color:#a9aeb5; font-style:normal; }
+
+  /* 240px collapse — name + bar survive, pips and counts go */
+  @media (max-width:280px) {
+    .drow .mana, .dsum .basics em, .dcurve, .dmana .nb { display:none; }
+    .drow { gap:6px; padding-left:7px; }
+  }
+
   footer { display:flex; align-items:center; gap:8px; padding:7px 12px;
     background:#0c0e11; border-top:1px solid var(--hairline); flex:none; }
   footer .dot { width:6px; height:6px; border-radius:50%; background:var(--ok); }
@@ -144,8 +302,13 @@
 </div>
 <script>
 const PIP_COLORS = {W:'#e9e2cf',U:'#5b8ec9',B:'#4a4954',R:'#c25c4a',G:'#5d9463'};
+const WUBRG = ['W','U','B','R','G'];
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
 let lastKey = null;
+let view = 'pick';          // pick | build | cuts
+let autoSwitched = false;   // the draft ending pulls us into the build once
+let diffKey = null, diffAt = 0;
+let lastState = null;
 
 function pips(p) {
   return '<div class="pips">' + 'WUBRG'.split('').map((c,i) =>
@@ -201,16 +364,254 @@ function rowsHtml(d) {
   return h;
 }
 
+/* ---- deck-builder view (H5) ------------------------------------------- */
+
+// mainboard rows step through three weights; the boundary fades continuously
+function mainTier(c) { return c >= 0.94 ? [0.85,0.13] : c >= 0.88 ? [0.70,0.11] : [0.60,0.10]; }
+function bndTier(c) {
+  const r = Math.min(0.75, Math.max(0.22, 0.22 + (c - 0.40) * 2.4));
+  return [r, r * 0.17];
+}
+function railCss(hue, a) { return `oklch(${hue} / ${a})`; }
+
+function manaHtml(c) {
+  let h = '';
+  // lands have no cost to show; a genuine 0-cost spell still reads as {0}
+  if (c.generic > 0 || (c.cmc === 0 && !c.is_land))
+    h += `<span class="mp gen">${c.generic}</span>`;
+  let n = 0;
+  WUBRG.forEach((col, i) => {
+    for (let k = 0; k < c.pips[i] && n < 5; k++, n++) h += `<span class="mp ${col}"></span>`;
+  });
+  return `<span class="mana">${h}</span>`;
+}
+
+// one deck row. kind: main | in | out | cut ; day0 desaturates the mainboard hue
+function drow(c, kind, day0) {
+  const rc = rarityClass(c.rarity);
+  const nm = `<span class="nm ${rc}">${esc(c.name)}</span>`;
+  const id = `data-card="${c.card_id}"`;
+  if (c.lock === 'in')
+    return `<div class="drow locked" ${id}><span class="lk">🔒</span>${nm}
+      ${manaHtml(c)}<span class="tag">locked in</span></div>`;
+  if (c.lock === 'out')
+    return `<div class="drow lockout" ${id}><span class="lk">🔒</span>${nm}
+      ${manaHtml(c)}<span class="tag">locked out</span></div>`;
+  const bnd = kind === 'in' || kind === 'out';
+  const [ra, fa] = bnd || kind === 'cut' ? bndTier(c.conf) : mainTier(c.conf);
+  const hue = bnd || kind === 'cut' ? '0.74 0.13 300'
+                                    : (day0 ? '0.72 0.07 195' : '0.80 0.12 195');
+  const style = `--rail:${railCss(hue, ra)};--fill:${railCss(hue, fa)};` +
+                `--w:${Math.round(c.conf * 100)}%`;
+  const lead = kind === 'out' || kind === 'cut' ? '<span class="n">—</span>'
+                                               : `<span class="n">${c.count}×</span>`;
+  const conf = bnd ? `<span class="cf">${cf(c.conf)} ${kind}</span>`
+             : kind === 'cut' ? `<span class="cf">${cf(c.conf)}</span>` : '';
+  const cls = 'drow' + (bnd ? ' bnd' : '') + (kind === 'out' || kind === 'cut' ? ' out' : '');
+  return `<div class="${cls}" ${id} style="${style}">${lead}${nm}${manaHtml(c)}${conf}</div>`;
+}
+// .61 / .05 / 1.0 — never ".100"
+function cf(c) { return c >= 0.995 ? '1.0' : '.' + String(Math.round(c * 100)).padStart(2, '0'); }
+
+function deckSummary(d, settle) {
+  const basics = d.basics.map((n, i) => n
+    ? `<span><i style="background:${PIP_COLORS[WUBRG[i]]}"></i><b>${n}</b></span>` : '')
+    .join('');
+  const nb = d.nonbasic_lands.reduce((s, c) => s + c.count, 0);
+  const mx = Math.max(1, ...d.curve);
+  const sorted = [...d.curve].sort((a, b) => b - a);
+  const bars = d.curve.map(h => {
+    const cls = h && h === sorted[0] ? ' class="hi"' : h && h === sorted[1] ? ' class="hi2"' : '';
+    return `<i${cls} style="height:${3 + Math.round(15 * h / mx)}px"></i>`;
+  }).join('');
+  const state = !d.legal ? ['bad', 'illegal']
+              : d.stats_mode === 'none' ? ['low', 'low confidence'] : ['', 'legal'];
+  return `<div class="dsum${settle ? ' settle' : ''}">
+    <div class="top"><span class="big">${d.n_cards}</span><span>cards</span>
+      <span class="big gap">${d.n_lands}</span><span>lands</span>
+      <span class="legal ${state[0]}"><i></i><b>${state[1]}</b></span></div>
+    <div class="bot"><div class="basics">${basics}
+      ${nb ? `<em>+${nb} nonbasic</em>` : ''}</div>
+      <div class="dcurve">${bars}</div></div></div>`;
+}
+
+function manaStrip(d) {
+  const basics = d.basics.map((n, i) => n
+    ? `<span class="bl"><i style="background:${PIP_COLORS[WUBRG[i]]}"></i><em>${n}</em></span>` : '')
+    .join('');
+  const nb = d.nonbasic_lands.map(c => esc(c.name)).join(', ');
+  return `<div class="dmana"><b>mana</b>${basics}
+    ${nb ? `<span class="nb">+ ${nb}</span>` : ''}</div>`;
+}
+
+function buildView(d) {
+  const day0 = d.stats_mode === 'none';
+  let h = '';
+  if (day0) h += `<div class="banner day0"><span class="chip">day 0</span>
+    <span class="detail">no win-rate data yet — wider boundary</span></div>`;
+  h += deckSummary(d, true);
+  h += '<div class="dscroll">';
+  for (const g of d.groups) {
+    h += `<div class="dhead"><b>${g.label}</b><hr><em>${g.n}</em></div>`;
+    h += g.cards.map(c => drow(c, 'main', day0)).join('');
+  }
+  const bin = d.boundary.in, bout = d.boundary.out;
+  if (bin.length || bout.length) {
+    h += `<div class="dhead bnd"><b>boundary · ${
+      day0 ? (bin.length + bout.length) + ' cards' : 'arguable'}</b><hr></div>`;
+    h += bin.map(c => drow(c, 'in', day0)).join('');
+    if (bin.length && bout.length) h += '<div class="bsplit"></div>';
+    h += bout.map(c => drow(c, 'out', day0)).join('');
+  }
+  const rest = d.cuts.reduce((s, c) => s + c.count, 0);
+  if (rest) h += `<div class="dmore" data-go="cuts"><span>${rest} more cut${
+    rest > 1 ? 's' : ''}</span><em>⌄</em></div>`;
+  h += manaStrip(d) + '</div>';
+  h += `<div class="dact">${d.n_locks
+    ? '<button data-act="clear_locks">Clear locks</button>' : ''}
+    <button class="prim" data-act="rebuild">Rebuild</button>
+    <button class="narrow" data-act="copy">Copy list</button></div>`;
+  return h;
+}
+
+function diffView(d) {
+  const f = d.diff;
+  const n = f.added.length + f.removed.length;
+  let h = `<div class="dbar"><b>rebuilt · ${n} change${n === 1 ? '' : 's'}</b>
+    <span>${f.locks_honored} of ${d.n_locks} lock${d.n_locks === 1 ? '' : 's'} honored</span></div>`;
+  h += '<div class="dscroll">';
+  for (const [cid, mode] of Object.entries(d.locks)) {
+    const row = findCard(d, +cid);
+    if (row) h += drow({...row, lock: mode}, 'main', false);
+  }
+  // a locked card's change is already stated by its lock row — don't say it twice
+  const shown = c => !d.locks[c.card_id];
+  h += f.added.filter(shown).map(c => {
+    return `<div class="drow plus" data-card="${c.card_id}" style="--rail:${
+      railCss('0.74 0.14 150', 0.8)};--fill:${railCss('0.74 0.14 150', 0.11)};--w:${
+      Math.round(c.conf * 100)}%"><span class="sg">+</span>
+      <span class="nm ${rarityClass(c.rarity)}">${esc(c.name)}</span>
+      ${manaHtml(c)}<span class="cf">${cf(c.conf)}</span></div>`;
+  }).join('');
+  h += f.removed.filter(shown).map(c =>
+    `<div class="drow minus" data-card="${c.card_id}" style="--rail:${
+      railCss('0.62 0.16 32', 0.6)};--fill:${railCss('0.62 0.16 32', 0.09)};--w:${
+      Math.round(c.conf * 100)}%"><span class="sg">−</span>
+      <span class="nm ${rarityClass(c.rarity)}">${esc(c.name)}</span>
+      ${manaHtml(c)}<span class="cf">${cf(c.conf)}</span></div>`).join('');
+  const basics = d.basics.map((x, i) => x ? x + WUBRG[i] : '').filter(Boolean).join(' ');
+  const nb = d.nonbasic_lands.reduce((s, c) => s + c.count, 0);
+  h += `<div class="dnote" data-go="build">${f.unchanged} unchanged · lands ${
+    d.n_lands} (${basics}${nb ? ' +' + nb : ''}) · tap to see the full build</div>`;
+  h += '</div>';
+  h += `<div class="dact">${d.n_locks
+    ? '<button data-act="clear_locks">Clear locks</button>' : ''}
+    <button class="prim" data-act="rebuild">Rebuild</button></div>`;
+  return h;
+}
+
+function findCard(d, cid) {
+  for (const g of d.groups) for (const c of g.cards) if (c.card_id === cid) return c;
+  for (const c of d.boundary.in.concat(d.boundary.out, d.cuts, d.nonbasic_lands))
+    if (c.card_id === cid) return c;
+  return null;
+}
+
+function cutsView(d) {
+  const all = d.boundary.out.concat(d.cuts);
+  let h = `<div class="dnav" data-go="build"><span>↑ back to build</span>
+    <em>sorted by nearness</em></div><div class="dscroll">`;
+  h += all.map(c => drow(c, 'cut', false)).join('');
+  h += `<div class="dnote">${all.length} card${all.length === 1 ? '' : 's'} not in the 40 · tap any row to lock it in</div></div>`;
+  h += `<div class="dact">${d.n_locks
+    ? '<button data-act="clear_locks">Clear locks</button>' : ''}
+    <button class="prim" data-act="rebuild">Rebuild</button></div>`;
+  return h;
+}
+
+function provisionalView(d, s) {
+  const left = 42 - (s.picks_count || 0);
+  const w = d.weak_slot;
+  return `<div class="prov">
+    <div class="chip"><b>provisional</b><span>${
+      left > 0 ? left + ' picks left · will change' : 'draft still open'}</span></div>
+    <div class="body">
+      <div class="top"><b>${d.playables}</b><span>playables so far</span>
+        <b class="gap">${d.n_lands}</b><span>lands proj.</span></div>
+      <div class="bot" style="display:flex;align-items:center;gap:9px">
+        ${pips(d.pips)}${curve(d.curve)}</div>
+      ${w ? `<div class="weak">Weakest slot: <em>${w.cmc}-drops (${w.have})</em>
+        · a typical build wants ${w.want}.</div>` : ''}
+    </div>
+    <div class="dnav" data-go="pick" style="margin-top:auto;border-top:1px solid var(--hairline);border-bottom:none">
+      <span>↑ back to picks</span><em>provisional · not final</em></div></div>`;
+}
+
+async function post(action, body) {
+  try {
+    const r = await fetch('/' + action, {method: 'POST', body: JSON.stringify(body || {})});
+    if (r.ok) render(await r.json());
+  } catch (e) { /* handler unavailable */ }
+}
+
+function copyList(text, btn) {
+  const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'Copy list', 1200); };
+  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(done, () => fallback()); }
+  else fallback();
+  function fallback() {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } finally { ta.remove(); }
+  }
+}
+
+document.getElementById('main').addEventListener('click', ev => {
+  const go = ev.target.closest('[data-go]');
+  if (go) { view = go.dataset.go; if (lastState) render(lastState); return; }
+  const act = ev.target.closest('[data-act]');
+  if (act) {
+    if (act.dataset.act === 'copy') copyList(lastState.deck.arena_list, act);
+    else { diffAt = 0; post(act.dataset.act); }
+    return;
+  }
+  const row = ev.target.closest('[data-card]');
+  if (row && lastState && lastState.deck) {
+    const cur = lastState.deck.locks[row.dataset.card];
+    const next = cur === 'in' ? 'out' : cur === 'out' ? 'clear' : 'in';
+    post('lock', {card_id: +row.dataset.card, mode: next});
+  }
+});
+
+function renderDeck(d, s) {
+  const main = document.getElementById('main');
+  if (d.provisional) { main.innerHTML = provisionalView(d, s); return; }
+  const key = JSON.stringify(d.diff);
+  if (d.diff && key !== diffKey) { diffKey = key; diffAt = Date.now(); }
+  const fresh = d.diff && Date.now() - diffAt < 12000;
+  main.innerHTML = view === 'cuts' ? cutsView(d) : fresh ? diffView(d) : buildView(d);
+}
+
 function render(d) {
+  lastState = d;
   const main = document.getElementById('main');
   main.style.display = 'flex'; main.style.flexDirection = 'column'; main.style.flex = '1'; main.style.minHeight = '0';
-  document.getElementById('ver').textContent = d.version || '';
+  const deck = d.deck && d.deck.available ? d.deck : null;
+  if (deck && !deck.provisional && !autoSwitched) { view = 'build'; autoSwitched = true; }
+  if (!deck || deck.provisional) { if (view === 'cuts') view = 'build'; }
+  const inDeck = deck && view !== 'pick';
+  document.getElementById('ver').textContent =
+    (inDeck ? deck.model_id : d.version) || '';
   const dot = document.getElementById('dot');
   const status = document.getElementById('status');
   dot.className = 'dot' + (d.status === 'error' ? ' err' : d.stats_mode === 'none' ? ' day0' : '');
   status.textContent = d.status_line || '';
-  document.getElementById('timer').textContent = d.pos_label || '';
+  document.querySelector('.chrome .title').textContent =
+    view === 'cuts' ? `cuts · ${deck ? deck.n_cuts : 0}`
+    : inDeck ? 'draft buddy · build' : 'draft buddy';
+  document.getElementById('timer').textContent =
+    inDeck && !deck.provisional ? `${deck.n_cards} · ${deck.n_lands}L` : (d.pos_label || '');
 
+  if (d.status !== 'error' && inDeck) { renderDeck(deck, d); return; }
   if (d.status === 'idle') {
     main.innerHTML = `<div class="center"><div class="ring"><i></i></div>
       <div class="l1">waiting for a draft</div>
@@ -234,6 +635,10 @@ function render(d) {
   const key = d.pos_label + ':' + (d.suggestions[0] ? d.suggestions[0].card_id : '');
   h += `<div id="rows" class="${key !== lastKey ? 'fresh' : ''}">${rowsHtml(d)}</div>`;
   lastKey = key;
+  // a provisional build is reachable between picks without stealing the timer
+  if (deck && deck.provisional)
+    h += `<div class="dmore" data-go="build" style="border-top:1px solid var(--hairline)">
+      <span>provisional build · ${deck.n_spells} playables</span><em>⌄</em></div>`;
   main.innerHTML = h;
 }
 
