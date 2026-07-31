@@ -763,3 +763,12 @@ leaderboard the source of truth, and neither shipped model satisfies it):
    If post-promotion MSH is inside decks_v2 then an MSH row would be
    contaminated and EOE is the honest read — but that reasoning belongs in the
    leaderboard, not in an agent's head.
+
+## 2026-07-31 — Owner question: is the MSH fine-tune needed on the v2 trunk? NO
+
+EXP-126 (trunk, no FT) on MSH val: trophy-F1 0.9004 vs EXP-127 (FT) 0.9011 —
++0.07, inside noise. For sets IN the corpus, fine-tuning is redundant; the
+FT step matters only in the release→next-refresh gap window (there it's
+worth +1.3pt, per EXP-120→121). Deployment simplification: EXP-126 alone
+covers current-set AND next-set-day-1; EXP-127 remains marginally best for
+the HUD as already wired.

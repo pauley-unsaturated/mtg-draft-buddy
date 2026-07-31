@@ -103,3 +103,4 @@ pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
 | EXP-128 | EXP-128@best | EOE | val | none | 0.8321 | 0.7653 | 0.8336 | 0.523 | 0.8330 | 0.179 | 2.273 | configs/EXP-128.yaml | 477a36a | 4.2h | 2026-07-31 |
 | EXP-128 | EXP-128@best | EOE | val | full | 0.8937 | 0.8618 | 0.8991 | 0.546 | 0.8976 | 0.173 | 1.942 | configs/EXP-128.yaml | 477a36a | 4.2h | 2026-07-31 |
 | EXP-129 | EXP-129@best | MSH | val | full | 0.8921 | 0.8701 | 0.9002 | 0.467 | 0.8988 | 0.242 | 2.123 | configs/EXP-129.yaml | 477a36a | 7min | 2026-07-31 |
+| EXP-126 | EXP-126@best | MSH | val | full | 0.8921 | 0.8694 | 0.9004 | 0.456 | 0.8984 | 0.242 | 2.094 | configs/EXP-126.yaml | f1d03f9 | 4.9h | 2026-07-31 |
