@@ -679,3 +679,14 @@ without hurting the other. Probe 3 redesigned: corpus decks_v2 = all sets
 INCLUDING MSH, EOE held out as the next-set stand-in — measures MSH-in-corpus
 production lift and replicates the day-1 result on a second set (EOE was an
 EXP-120 proxy set → first direct seen-vs-unseen gap on the same set).
+
+## 2026-07-30 — Probe 2 (epochs): KEEP for day-1; FT plateau counter 2/3
+
+EXP-124 (epochs 24): proxy 0.9082 (+0.14); zero-shot none **0.8330 (+0.32 —
+the day-1 axis)**; zero-shot full 0.8859 (flat); EXP-125 FT 0.9002 (tie).
+One line: longer pretraining converts to day-0 robustness, not to in-set
+accuracy. Kept per the two-axis rule; production trunk = 24 epochs.
+Probe 3 launched: EXP-126 = corpus decks_v2 (MSH IN — production; EOE held
+out as next-set stand-in), epochs 24; EXP-127 = MSH FT. Two-axis bars:
+EXP-127 > 0.9005 (MSH-in-corpus should lift current-set); EOE zero-shot
+gap vs its seen-in-corpus baseline quantifies the true day-1 cost.
