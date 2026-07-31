@@ -385,7 +385,9 @@ class DeckCorpusTrainer:
             print(f"loaded {code}: {arr.n_builds} builds", flush=True)
 
         self.val_proxies = []
-        for code in self.PROXY_SETS:
+        proxy_sets = [c for c in self.PROXY_SETS if c in codes]
+        assert len(proxy_sets) >= 2, "too few proxy sets left in corpus"
+        for code in proxy_sets:
             splits = load_splits(code)
             win = load_deck_arrays(code, set(splits["random"]["val"]),
                                    view="winningest")
