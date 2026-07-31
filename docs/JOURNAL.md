@@ -772,3 +772,11 @@ FT step matters only in the release→next-refresh gap window (there it's
 worth +1.3pt, per EXP-120→121). Deployment simplification: EXP-126 alone
 covers current-set AND next-set-day-1; EXP-127 remains marginally best for
 the HUD as already wired.
+
+## 2026-07-31 — Laptop-deployment bundler productized
+
+`python -m draftbot.bundle --set MSH [--set <NEXT> ...]` → laptop-bundle.tar.gz
+(checkpoints minus resume state, per-set cards/features/decks/splits/snapshots,
+Scryfall cache; training data excluded). Defaults to the frozen production
+checkpoints (EXP-033/116/126/127). Next-set workflow documented in the module
+docstring. Smoke test in tests/test_bundle.py.

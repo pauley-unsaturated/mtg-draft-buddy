@@ -145,3 +145,4 @@ events.out.tfevents.*
 
 # Mac files
 .DS_Store
+/laptop-bundle.tar.gz
