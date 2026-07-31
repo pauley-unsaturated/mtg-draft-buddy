@@ -690,3 +690,18 @@ Probe 3 launched: EXP-126 = corpus decks_v2 (MSH IN — production; EOE held
 out as next-set stand-in), epochs 24; EXP-127 = MSH FT. Two-axis bars:
 EXP-127 > 0.9005 (MSH-in-corpus should lift current-set); EOE zero-shot
 gap vs its seen-in-corpus baseline quantifies the true day-1 cost.
+
+## 2026-07-31 — Probe 3: EXP-127 new production best (0.9011); FT-axis PLATEAU declared; day-1 replicated
+
+- **EXP-127 (FT from MSH-in-corpus trunk): MSH val trophy-F1 0.9011** — new
+  best (+0.06 vs EXP-121); third consecutive sub-+0.2 FT result → the
+  current-set axis is formally plateaued per the 3-probe rule. Production:
+  trunk EXP-126, MSH model EXP-127.
+- **Day-1 replication (EOE, never seen): 0.8347 none / 0.8981 full** — mirrors
+  MSH (0.8298/0.8871). The recipe generalizes across holdout choice.
+- **Seen-vs-unseen priced on the same set (EOE, EXP-124 vs EXP-126)**:
+  no-stats 0.8997 vs 0.8347 (−6.5pt); full-stats 0.9101 vs 0.8981 (−1.2pt).
+  Day-1 cost is almost entirely erased by card ratings; note stat-dropout
+  lets a SEEN set build at full quality with zero stats.
+Probe 4 (day-1 axis; FT axis plateaued): EXP-128 = v2 corpus +
+stat_dropout 0.4; EXP-129 = its MSH FT (guard: FT must not regress).
