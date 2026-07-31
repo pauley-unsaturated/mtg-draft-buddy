@@ -93,8 +93,10 @@ Player.log ─▶ LogFollower ─▶ DraftState ─▶ Advisor(model) ─▶ HUD
 - **H4 — polish:** quick-draft (bot) events; auto set detection → auto
   onboard-set if the set is unknown (ties into P4.T3); config file.
 - **H5 — deck-builder view (DONE 2026-07-30):** second view of the same window
-  (design states B1–B5). `hud/deck.py` runs EXP-121 for the proposed 40 and
-  EXP-116 for lock-conditioned rebuilds; `/state` carries a `deck` section and
+  (design states B1–B5). `hud/deck.py` runs the production builder for the
+  proposed 40 (EXP-121 at ship; **EXP-126** since the 2026-07-31 model lock —
+  see DECKBUILDER_HANDOFF.md) and EXP-116 for lock-conditioned rebuilds;
+  `/state` carries a `deck` section and
   `POST /lock|/rebuild|/clear_locks` drive it. Full card list always visible
   (scrolling, sticky cmc headers, per-row mana cost), shared boundary zone,
   cuts view, rebuild diff, provisional peek from pick 30, day-0 badge, Arena

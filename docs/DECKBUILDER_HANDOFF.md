@@ -1,5 +1,51 @@
 # Engineering hand-off: HUD deck-builder section (HUD H5 / PLAN P5)
 
+## Final model selection (owner sign-off 2026-07-31) — LOCKED
+
+Production is the **corpus-pretrained trunks**, not the best in-set scorers:
+
+| role | ship | best-on-MSH | why the shipped one |
+|---|---|---|---|
+| draft | **EXP-033** | EXP-013 | day-1 zero-shot on an unseen set + onboard-set fine-tune path |
+| deck | **EXP-126** | EXP-121 | same, for building |
+| rebuild | **EXP-116** | — | only builder with `diffusion=True`; conditions on locks natively |
+
+These are the `--models` / `--deck-models` defaults in `draftbot/hud/__main__.py`
+(`PROD_DRAFT_MODELS` / `PROD_DECK_MODELS`). Change them there, not in docs.
+
+**Best measured MSH accuracy — EXP-013**, test top-1 0.6756 / expert-subset
+0.6985 (val 0.6778/0.7020): ModernDraftBot at small scale — decoder-only over
+the 42 picks, set-attention pack encoder, pointer head, emb 128 / 4 layers
+(~2M params), importance weighting on, priors off, **no hard skill filter**.
+That last one was the ablation: soft weighting beat hard curation, and the
+same lesson repeated on the deck side as EXP-105's failure. The scaled variant
+EXP-023 (emb 256 / 6 layers) came in *below* it on test (0.6742) — scale did
+not pay on the draft side either, a pattern now held across both models.
+
+**Why EXP-033 ships anyway:** corpus-v2 trunk over 30 sets incl. post-promotion
+MSH (Appendix-D refresh recipe). MSH week1 .6852exp / full .6962exp — same
+class as EXP-013's .6985, and it is the one with *live* validation: Mark's real
+MSH draft scored 93% top-1 agreement (39/42), every disagreement in the
+pre-fix picks 1–4.
+
+Both halves landed in the same place: a ~2M-param model at the practical
+accuracy ceiling for imitation, with the corpus trunk as the production
+artifact because generalization — not in-set accuracy — is what the extra
+machinery buys.
+
+**Two provenance gaps to close** (do not block shipping; PLAN §0 says
+leaderboard rows are the source of truth):
+1. EXP-033 has **no leaderboard row** — its MSH numbers live only in the
+   2026-07-29 journal entry. Needs a `python -m draftbot.eval` row.
+2. EXP-126 has **no MSH row** — only EOE (val full trophy-F1 0.8981, val none
+   0.8347). If post-promotion MSH is in `decks_v2`, an MSH row would be
+   contaminated and EOE is the honest generalization read; say so explicitly
+   in the leaderboard so the gap does not read as an oversight.
+   Sanity-checked at integration: on the real MSH pool EXP-126 returns a legal
+   40 with the same 17 lands and same basics split as EXP-121, 20/21 mainboard
+   overlap.
+
+
 Audience: an agent implementing the deck-builder view in the HUD app.
 Design spec: docs/DECKBUILDER_DESIGN_BRIEF.md (Claude Design round-trip).
 Read CLAUDE.md + PLAN.md §0 first. Scope: `src/draftbot/hud/` ONLY — the

@@ -17,8 +17,13 @@ from draftbot.hud.state import DraftState
 
 FIXTURE = Path(__file__).parent / "fixtures" / "real_draft_msh.log"
 CARDS = Path("data/processed/MSH/cards.parquet")
-PRIMARY = Path("checkpoints/EXP-121")
-REBUILD = Path("checkpoints/EXP-116")
+
+# exercise the checkpoints that actually ship, so the model lock and the DoD
+# cannot drift apart (docs/DECKBUILDER_HANDOFF.md "Final model selection")
+from draftbot.hud.__main__ import PROD_DECK_MODELS  # noqa: E402
+
+_PROD = [Path(p) for p in PROD_DECK_MODELS.split(",")]
+PRIMARY, REBUILD = _PROD[0], _PROD[1]
 
 needs_data = pytest.mark.skipif(
     not (CARDS.exists() and FIXTURE.exists()), reason="MSH data/fixture not built")

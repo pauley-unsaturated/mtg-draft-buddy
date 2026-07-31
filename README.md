@@ -14,9 +14,9 @@ Arena, then proposes a 40-card build when the draft ends.
 
 ```bash
 uv sync --extra dev
-uv run python -m draftbot.hud --models checkpoints/EXP-033 --ui window
+uv run python -m draftbot.hud --ui window
 # replay a captured log instead of a live draft:
-uv run python -m draftbot.hud --models checkpoints/EXP-033 --ui window \
+uv run python -m draftbot.hud --ui window \
     --replay tests/fixtures/real_draft_msh.log --replay-delay 0.4
 ```
 
@@ -30,8 +30,14 @@ When the draft ends the window switches to the deck builder: the proposed 40
 with per-card membership confidence, the arguable boundary between the last
 cards in and the first cards out, the cut list, and the mana split. Click any
 row to lock it in or out and hit **Rebuild**; **Copy list** yields an
-Arena-importable decklist. Deck models default to
-`checkpoints/EXP-121,checkpoints/EXP-116` (`--deck-models`, `--no-deck`).
+Arena-importable decklist.
+
+Defaults are the corpus-pretrained production trunks — `EXP-033` drafting
+(`--models`), `EXP-126` building with `EXP-116` for lock-and-rebuild
+(`--deck-models`, or `--no-deck` to skip the builder). They ship over the
+marginally-better-on-MSH single-set models (EXP-013 / EXP-121) because they
+also work day-1 on a set they have never seen; add `--stats none` for that
+case. See docs/DECKBUILDER_HANDOFF.md "Final model selection".
 
 ## achievements
 

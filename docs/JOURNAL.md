@@ -725,3 +725,41 @@ Queue empty; FT axis plateaued at probe 3, day-1 axis now 2 consecutive flats.
 Probe ledger: scale ✗, epochs ✓ (day-1 +0.32), MSH-in-corpus ✓ (+0.06 FT,
 production-correct), stat_dropout 0.4 ✗. 29 deck EXPs total, all on the
 leaderboard.
+
+## 2026-07-31 — Production model lock: corpus trunks ship, not the in-set winners
+
+Owner sign-off on the researcher's final read. Recorded in
+docs/DECKBUILDER_HANDOFF.md ("Final model selection — LOCKED") and encoded as
+`PROD_DRAFT_MODELS` / `PROD_DECK_MODELS` in `draftbot/hud/__main__.py`, so
+`python -m draftbot.hud --ui window` now needs no model flags at all.
+
+Ship: **EXP-033** (draft) + **EXP-126** (deck) + **EXP-116** (lock-rebuild;
+the only builder with diffusion=True, so the only one that conditions on locks
+natively). NOT shipped: EXP-013 (test top-1 0.6756 / 0.6985exp, the best
+measured MSH drafter) and EXP-121 (trophy-F1 0.9005, the best measured MSH
+builder). Generalization — day-1 zero-shot on an unseen set plus the
+onboard-set fine-tune path — is what the corpus machinery buys, and it is what
+a HUD needs; in-set accuracy is a wash (EXP-033 MSH full .6962exp vs .6985).
+
+Two findings that repeated across both halves of the project:
+- **Scale did not pay.** EXP-023 (emb 256/6) came in BELOW EXP-013 on test
+  (0.6742 vs 0.6756), the same shape as EXP-122/123 landing below EXP-121 on
+  the deck side. ~2M params is the practical imitation ceiling here.
+- **Soft weighting beat hard curation.** The no-hard-skill-filter ablation on
+  the draft side is the same lesson EXP-105 relearned on the deck side.
+
+Integration check before promoting EXP-126: on the real MSH pool it returns a
+legal 40 with the same 17 lands and the same basics split as EXP-121, 20/21
+mainboard overlap. The one substantive disagreement is real, not a bug — the
+pool holds 3× Stolen Stark Tech; EXP-126 plays all three, EXP-121 played one.
+tests/test_hud_deck.py now derives its checkpoints from PROD_DECK_MODELS so
+the DoD cannot drift from what ships. `uv run pytest` green.
+
+**Provenance gaps left open** (flagged in the handoff; PLAN §0 makes the
+leaderboard the source of truth, and neither shipped model satisfies it):
+1. EXP-033 has NO leaderboard row — its MSH numbers exist only in the
+   2026-07-29 journal entry. Needs a `python -m draftbot.eval` row.
+2. EXP-126 has no MSH row, only EOE (val full trophy-F1 0.8981 / none 0.8347).
+   If post-promotion MSH is inside decks_v2 then an MSH row would be
+   contaminated and EOE is the honest read — but that reasoning belongs in the
+   leaderboard, not in an agent's head.

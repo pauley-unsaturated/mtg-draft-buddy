@@ -1,7 +1,14 @@
 """Terminal HUD (H2): live model rankings alongside an Arena draft.
 
-Live:    uv run python -m draftbot.hud --models checkpoints/EXP-033
-Replay:  uv run python -m draftbot.hud --models ... --replay path/to/Player.log
+Live:    uv run python -m draftbot.hud --ui window
+Replay:  uv run python -m draftbot.hud --replay path/to/Player.log
+
+Production checkpoints (owner sign-off 2026-07-31, see DECKBUILDER_HANDOFF.md
+"Final model selection"): the corpus-pretrained trunks, not the best in-set
+scorers. EXP-013 (draft) and EXP-121 (deck) measure marginally higher ON MSH,
+but the corpus trunks carry day-1 zero-shot on an unseen set and the
+onboard-set fine-tune path — generalization is what the extra machinery buys,
+and a HUD that only works on one set is not a HUD.
 """
 
 import argparse
@@ -20,6 +27,12 @@ from draftbot.hud.state import DraftState
 RARITY_STYLE = {"mythic": "bold orange1", "rare": "gold3",
                 "uncommon": "grey70", "common": "white"}
 PIPS = "WUBRG"
+
+# production defaults — see the module docstring for why these and not the
+# best MSH scorers. EXP-116 stays the rebuild slot: it is the only builder
+# with diffusion=True, i.e. the only one that conditions on locks natively.
+PROD_DRAFT_MODELS = "checkpoints/EXP-033"
+PROD_DECK_MODELS = "checkpoints/EXP-126,checkpoints/EXP-116"
 
 
 def render(state: DraftState, ranked: dict, pips: list[int]) -> Table:
@@ -192,7 +205,8 @@ def render_deck(d: dict) -> Table:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="draftbot.hud")
-    ap.add_argument("--models", required=True)
+    ap.add_argument("--models", default=PROD_DRAFT_MODELS,
+                    help=f"draft scorer(s), comma-separated (default {PROD_DRAFT_MODELS})")
     ap.add_argument("--stats", default="full", choices=["none", "week1", "full"])
     ap.add_argument("--log", type=Path, default=DEFAULT_LOG)
     ap.add_argument("--replay", type=Path, default=None)
@@ -200,9 +214,9 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--replay-delay", type=float, default=0.0,
                     help="seconds per pick when replaying into the window UI")
-    ap.add_argument("--deck-models",
-                    default="checkpoints/EXP-121,checkpoints/EXP-116",
-                    help="one-shot builder[,diffusion builder for lock+rebuild]")
+    ap.add_argument("--deck-models", default=PROD_DECK_MODELS,
+                    help=f"one-shot builder[,diffusion builder for lock+rebuild] "
+                         f"(default {PROD_DECK_MODELS})")
     ap.add_argument("--no-deck", action="store_true",
                     help="skip the deck-builder section (HUD_PLAN H5)")
     ap.add_argument("--provisional-from", type=int, default=30,
