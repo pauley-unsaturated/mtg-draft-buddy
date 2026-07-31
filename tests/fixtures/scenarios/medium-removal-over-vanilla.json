@@ -1,0 +1,33 @@
+{
+ "name": "medium-removal-over-vanilla",
+ "tier": "medium",
+ "position": 5,
+ "pack": [
+  "Lightning Strike",
+  "Volcanic Villain",
+  "Hire a Crew",
+  "Super Strength",
+  "Powerful Broker",
+  "Call Damage Control",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone"
+ ],
+ "pool": [
+  "HULK SMASH!",
+  "Crimson Operative",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Wonder Man, Hollywood Hero"
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Lightning Strike"
+  ]
+ },
+ "rationale": "Committed red: premium removal over vanilla creatures, easy for anything stat-aware, medium because the pool must not distract."
+}

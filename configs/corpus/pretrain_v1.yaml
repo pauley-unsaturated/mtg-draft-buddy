@@ -1,0 +1,40 @@
+# Pretraining corpus manifest v1 (PLAN Phase 3). Consumed by the streaming
+# dataloader AND tests/test_quarantine.py. The quarantine list is absolute:
+# those sets must never appear in `sets`, warm-start sources, or scaler fits.
+quarantine:
+  - MSH
+
+# Per-set draft cap to balance eras / bound epoch cost.
+max_drafts_per_set: 40000
+
+# weight 2.0 = play-booster era (rules environment matches future sets).
+sets:
+  MKM: {weight: 2.0}
+  OTJ: {weight: 2.0}
+  MH3: {weight: 2.0}
+  BLB: {weight: 2.0}
+  DSK: {weight: 2.0}
+  FDN: {weight: 2.0}
+  PIO: {weight: 2.0}
+  DFT: {weight: 2.0}
+  TDM: {weight: 2.0}
+  FIN: {weight: 2.0}
+  EOE: {weight: 2.0}
+  TLA: {weight: 2.0}
+  ECL: {weight: 2.0}
+  WOE: {weight: 1.0}
+  LCI: {weight: 1.0}
+  DMU: {weight: 1.0}
+  BRO: {weight: 1.0}
+  ONE: {weight: 1.0}
+  MOM: {weight: 1.0}
+  SIR: {weight: 1.0}
+  LTR: {weight: 1.0}
+  KTK: {weight: 1.0}
+  STX: {weight: 1.0}
+  AFR: {weight: 1.0}
+  MID: {weight: 1.0}
+  VOW: {weight: 1.0}
+  NEO: {weight: 1.0}
+  SNC: {weight: 1.0}
+  HBG: {weight: 1.0}

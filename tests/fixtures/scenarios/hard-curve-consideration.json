@@ -1,0 +1,63 @@
+{
+ "name": "hard-curve-consideration",
+ "tier": "hard",
+ "position": 35,
+ "pack": [
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Super Speed",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids"
+ ],
+ "pool": [
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Lightning Strike",
+  "HULK SMASH!",
+  "Crimson Operative",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Project Deathlok Soldier",
+  "Doctor Doom",
+  "M.O.D.O.K."
+ ],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "HULK SMASH!",
+   "Crimson Operative"
+  ]
+ },
+ "rationale": "P3P8 with a full BR pool: late playables \u2014 either on-color pick fine, basics/off-color wrong."
+}

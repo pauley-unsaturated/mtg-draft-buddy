@@ -1,0 +1,50 @@
+{
+ "name": "medium-stay-in-lane-p2",
+ "tier": "medium",
+ "position": 20,
+ "pack": [
+  "Undercover Skrull",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hire a Crew",
+  "Super Speed",
+  "Volcanic Villain",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Project Deathlok Soldier",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone",
+  "Dependable Quinjet"
+ ],
+ "pool": [
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "We Say Thee Nay!",
+  "Hero in Training",
+  "We Say Thee Nay!"
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Murdock's Crusade",
+   "Web Up"
+  ]
+ },
+ "rationale": "P2P7 committed WU: take the on-color common over the off-color G common with marginally better raw stats."
+}

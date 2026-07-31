@@ -128,11 +128,21 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Don't upload data
-data/
+# Don't upload data (anchored: an unanchored `data/` silently ignored the
+# src/draftbot/data package for the whole project — found 2026-07-29)
+/data/
+
+# Checkpoints, training runs, experiment logs
+checkpoints/
+runs/
+wandb/
+*.ckpt
+*.pt
+events.out.tfevents.*
 
 # Don't upload vscode specs
 .vscode
 
 # Mac files
 .DS_Store
+/laptop-bundle.tar.gz

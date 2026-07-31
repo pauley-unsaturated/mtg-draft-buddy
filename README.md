@@ -2,6 +2,43 @@
 
 State of the art Magic: the Gathering Draft and DeckBuilder AI.
 
+> **Fork note (mtg-draft-buddy).** This fork modernises the 2022 TensorFlow
+> code into a PyTorch/MPS multi-set drafter. New code lives in
+> `src/draftbot/`; `mtg/` below is the original, kept for reference. See
+> `CLAUDE.md`, `docs/PLAN.md`, and `docs/HUD_PLAN.md`.
+
+## draft HUD
+
+A small always-on-top window that ranks the live pack while you draft in
+Arena, then proposes a 40-card build when the draft ends.
+
+```bash
+uv sync --extra dev
+uv run python -m draftbot.hud --ui window
+# replay a captured log instead of a live draft:
+uv run python -m draftbot.hud --ui window \
+    --replay tests/fixtures/real_draft_msh.log --replay-delay 0.4
+```
+
+**Arena must have Detailed Logs on** — *Settings → Account → ✓ Detailed Logs
+(Plugin Support)*, then restart Arena. Without it Arena writes no draft events
+to `~/Library/Logs/Wizards Of The Coast/MTGA/Player.log` and the HUD sits idle.
+The HUD only ever reads that file; it never writes to it or uploads anything,
+and it coexists with the 17lands uploader tailing the same log.
+
+When the draft ends the window switches to the deck builder: the proposed 40
+with per-card membership confidence, the arguable boundary between the last
+cards in and the first cards out, the cut list, and the mana split. Click any
+row to lock it in or out and hit **Rebuild**; **Copy list** yields an
+Arena-importable decklist.
+
+Defaults are the corpus-pretrained production trunks — `EXP-033` drafting
+(`--models`), `EXP-126` building with `EXP-116` for lock-and-rebuild
+(`--deck-models`, or `--no-deck` to skip the builder). They ship over the
+marginally-better-on-MSH single-set models (EXP-013 / EXP-121) because they
+also work day-1 on a set they have never seen; add `--stats none` for that
+case. See docs/DECKBUILDER_HANDOFF.md "Final model selection".
+
 ## achievements
 
 ![mythicbot](https://user-images.githubusercontent.com/2286292/149001531-9c983259-4ac6-4ed3-b54a-b0705fb57124.PNG)

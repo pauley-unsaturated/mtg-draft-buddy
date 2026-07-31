@@ -1,0 +1,25 @@
+exp: EXP-014
+model: modern
+set: MSH
+stats: full
+seed: 17
+batch_drafts: 64
+epochs: 20
+patience: 3
+emb_dim: 128
+layers: 4
+heads: 8
+dropout: 0.1
+use_set_encoder: true
+pointer_head: true
+weighting: importance
+priors: false
+label_smoothing: 0.0
+skill_filter:
+  min_win_rate: 0.54
+  min_games: 50
+peak_lr: 0.0003
+lr_warmup: 500
+weight_decay: 0.01
+grad_clip: 1.0
+ablation: smoothing-0

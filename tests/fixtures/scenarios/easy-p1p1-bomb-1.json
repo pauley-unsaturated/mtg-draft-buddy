@@ -1,0 +1,29 @@
+{
+ "name": "easy-p1p1-bomb-1",
+ "tier": "easy",
+ "position": 0,
+ "pack": [
+  "Captain Marvel, Earth's Protector",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Hire a Crew",
+  "Super Speed",
+  "Super Strength",
+  "Powerful Broker",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone"
+ ],
+ "pool": [],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Captain Marvel, Earth's Protector"
+  ]
+ },
+ "rationale": "P1P1 obvious bomb: GIH 0.69 mythic finisher vs weak commons."
+}

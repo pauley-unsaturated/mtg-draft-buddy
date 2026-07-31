@@ -1,0 +1,48 @@
+{
+ "name": "hard-dual-land-vs-spell-2c",
+ "tier": "hard",
+ "position": 18,
+ "pack": [
+  "Gathering Place",
+  "Widow's Bite",
+  "Rapid Rescue",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone"
+ ],
+ "pool": [
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Undercover Skrull",
+  "Go Nuts!",
+  "Rapid Rescue",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Undercover Skrull",
+  "Go Nuts!",
+  "Rapid Rescue",
+  "Cruel Alliance",
+  "HYDRA Infiltration",
+  "Widow's Bite",
+  "Undercover Skrull",
+  "Go Nuts!",
+  "Rapid Rescue"
+ ],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "Widow's Bite",
+   "Rapid Rescue",
+   "Gathering Place"
+  ]
+ },
+ "rationale": "2-color BG pool: spell usually beats fixing, but the land is defensible; expect top-2 among these three."
+}

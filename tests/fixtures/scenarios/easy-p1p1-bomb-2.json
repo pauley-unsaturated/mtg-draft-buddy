@@ -1,0 +1,29 @@
+{
+ "name": "easy-p1p1-bomb-2",
+ "tier": "easy",
+ "position": 0,
+ "pack": [
+  "Black Panther, Wakandan King",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Decoy Ploy",
+  "Agents of HYDRA",
+  "Hire a Crew",
+  "Super Speed",
+  "Super Strength",
+  "Powerful Broker",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone"
+ ],
+ "pool": [],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "Black Panther, Wakandan King"
+  ]
+ },
+ "rationale": "P1P1 obvious bomb: GIH 0.69, 2-mana mythic vs weak commons."
+}

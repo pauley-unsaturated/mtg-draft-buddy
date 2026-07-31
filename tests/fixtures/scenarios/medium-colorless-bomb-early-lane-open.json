@@ -1,0 +1,31 @@
+{
+ "name": "medium-colorless-bomb-early-lane-open",
+ "tier": "medium",
+ "position": 2,
+ "pack": [
+  "Sword of Fire and Ice",
+  "Hero in Training",
+  "Cruel Alliance",
+  "Hire a Crew",
+  "Super Speed",
+  "Volcanic Villain",
+  "Atlantean Cavalry",
+  "Hydraulic Helper",
+  "Super Suit",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone",
+  "Dependable Quinjet"
+ ],
+ "pool": [
+  "Light of Promise",
+  "Murdock's Crusade"
+ ],
+ "expect": {
+  "k": 2,
+  "any_of": [
+   "Sword of Fire and Ice"
+  ]
+ },
+ "rationale": "P1P3, pool leaning W: the colorless mythic keeps options open and is the strongest card; top-2 tolerance for taking the on-color common instead."
+}

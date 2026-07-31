@@ -1,0 +1,67 @@
+# Deck-corpus manifest v1 (2026-07-30): pool→deck pretrain (DECK_DATA_PLAN
+# scale-out). MSH is HELD OUT for the honest day-1 zero-shot measurement —
+# it is corpus-eligible post-promotion; this is a science choice, not
+# quarantine. No active sandbag today; add the next Arena set to
+# `quarantine` on announcement day, BEFORE downloading its data.
+# AFR dropped 2026-07-30: game-data draft_ids join its draft logs at 0.3% —
+# the 2021-era id universes don't match; nothing usable under split hygiene.
+quarantine: []
+holdout:
+  - MSH
+sets:
+  MKM:
+    weight: 2.0
+  OTJ:
+    weight: 2.0
+  MH3:
+    weight: 2.0
+  BLB:
+    weight: 2.0
+  DSK:
+    weight: 2.0
+  FDN:
+    weight: 2.0
+  PIO:
+    weight: 2.0
+  DFT:
+    weight: 2.0
+  TDM:
+    weight: 2.0
+  FIN:
+    weight: 2.0
+  EOE:
+    weight: 2.0
+  TLA:
+    weight: 2.0
+  ECL:
+    weight: 2.0
+  WOE:
+    weight: 1.0
+  LCI:
+    weight: 1.0
+  DMU:
+    weight: 1.0
+  BRO:
+    weight: 1.0
+  ONE:
+    weight: 1.0
+  MOM:
+    weight: 1.0
+  SIR:
+    weight: 1.0
+  LTR:
+    weight: 1.0
+  KTK:
+    weight: 1.0
+  STX:
+    weight: 1.0
+  MID:
+    weight: 1.0
+  VOW:
+    weight: 1.0
+  NEO:
+    weight: 1.0
+  SNC:
+    weight: 1.0
+  HBG:
+    weight: 1.0

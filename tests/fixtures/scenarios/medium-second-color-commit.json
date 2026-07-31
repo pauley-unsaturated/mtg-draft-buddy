@@ -1,0 +1,43 @@
+{
+ "name": "medium-second-color-commit",
+ "tier": "medium",
+ "position": 14,
+ "pack": [
+  "We Say Thee Nay!",
+  "Rapid Rescue",
+  "Decoy Ploy",
+  "Kree Commandos",
+  "Panther Pounce",
+  "Agents of S.H.I.E.L.D.",
+  "Hire a Crew",
+  "Super Speed",
+  "Volcanic Villain",
+  "Vibranium Energy Daggers",
+  "A.I.M. Synthoids",
+  "Ultron Drone",
+  "Dependable Quinjet"
+ ],
+ "pool": [
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Hero in Training",
+  "Murdock's Crusade",
+  "Web Up",
+  "Trickster's Stratagem",
+  "S.H.I.E.L.D. Deployment Drone",
+  "Light of Promise",
+  "Captain Marvel, Earth's Protector",
+  "Web Up"
+ ],
+ "expect": {
+  "k": 1,
+  "any_of": [
+   "We Say Thee Nay!"
+  ]
+ },
+ "rationale": "P2P1: pool is W + light U; take the U playable that confirms the second color over off-color options."
+}
