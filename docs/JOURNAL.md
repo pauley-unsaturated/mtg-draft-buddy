@@ -669,3 +669,13 @@ unchanged — zero-shot full 0.8878 (=), none 0.8283 (=), fine-tuned EXP-123
 transfer; the confident-error slice is not capacity-starved at this scale.
 Plateau counter 1/3. Probe 2: EXP-124 = small corpus config with epoch cap
 24 (both corpus runs were still improving at cap 12); EXP-125 = its MSH FT.
+
+## 2026-07-30 — Owner objective refined: current-set AND next-set-day-1, one recipe
+
+Directive: the deliverable is a corpus trunk (day-1 model) + per-set
+fine-tune (current-set model). Probe scoring is now TWO-AXIS: zero-shot
+(stats none) day-1 + fine-tuned current-set; keep levers that help one axis
+without hurting the other. Probe 3 redesigned: corpus decks_v2 = all sets
+INCLUDING MSH, EOE held out as the next-set stand-in — measures MSH-in-corpus
+production lift and replicates the day-1 result on a second set (EOE was an
+EXP-120 proxy set → first direct seen-vs-unseen gap on the same set).
