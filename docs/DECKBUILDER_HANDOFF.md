@@ -9,8 +9,9 @@ train,eval}` or any test outside `tests/test_hud_*`.
 ## What exists (do not rebuild)
 
 - **Models on disk** (gitignored; Mark's machine has them):
-  - `checkpoints/EXP-121/` — production one-shot builder (val trophy-F1
-    0.9005). Use for the initial proposed build.
+  - `checkpoints/EXP-127/` — production one-shot builder (val trophy-F1
+    0.9011; corpus-pretrained trunk EXP-126 + MSH fine-tune). Use for the
+    initial proposed build. (EXP-121 is the retired previous best.)
   - `checkpoints/EXP-116/` — diffusion variant: same quality class (0.8951)
     but supports **partial-deck conditioning** — use it for lock-and-rebuild.
 - **Loading**: `draftbot.models.loading.deck_builder_from_checkpoint(ckpt_dir,

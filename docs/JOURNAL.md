@@ -705,3 +705,23 @@ gap vs its seen-in-corpus baseline quantifies the true day-1 cost.
   lets a SEEN set build at full quality with zero stats.
 Probe 4 (day-1 axis; FT axis plateaued): EXP-128 = v2 corpus +
 stat_dropout 0.4; EXP-129 = its MSH FT (guard: FT must not regress).
+
+## 2026-07-31 — Probe 4 negative; PROBE SERIES CLOSED — both axes at plateau
+
+EXP-128 (stat_dropout 0.4): EOE day-1 0.8336 (−0.11), EOE full 0.8991 (+0.10
+noise), MSH FT via EXP-129 0.9002 (−0.09). Dropout 0.25 was already right.
+Queue empty; FT axis plateaued at probe 3, day-1 axis now 2 consecutive flats.
+
+**FINAL PRODUCTION RECIPE (frozen):**
+- Trunk: **EXP-126** — corpus decks_v2 (28 sets incl. MSH, AFR excluded),
+  epochs 24, stat_dropout 0.25, uniform weighting, basics_lambda 0.5.
+- Current-set model: **EXP-127** = EXP-126 + 8-min MSH fine-tune —
+  **val trophy-F1 0.9011** (best of 29 experiments).
+- Interactive builder: EXP-116 (lock-and-rebuild) per DECKBUILDER_HANDOFF.
+- Next-set playbook (measured, not estimated): announcement day → set joins
+  quarantine in decks manifest; release day → zero-shot ≈ 0.83 trophy-F1
+  (no data), ≈ 0.90 once ratings API fills (~ −1.2pt vs a seen set);
+  game_data drop → extract (~2 min) + fine-tune (~8 min) → ≈ 0.90+ in-set.
+Probe ledger: scale ✗, epochs ✓ (day-1 +0.32), MSH-in-corpus ✓ (+0.06 FT,
+production-correct), stat_dropout 0.4 ✗. 29 deck EXPs total, all on the
+leaderboard.
