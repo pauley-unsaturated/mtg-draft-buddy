@@ -844,3 +844,38 @@ Gap to ceiling on TLA sealed: 0.7516 vs 0.9066/0.9224 — the big remaining
 lever is sealed data volume; a second one worth a future proposal is joint
 draft+sealed training (shared trunk, format token). Both are new-EXP
 territory, not tweaks.
+
+## 2026-08-01 — Joint draft+sealed training: EXP-135 is production for BOTH deck formats (P5.S5)
+
+Owner directive: "a good deck is a good deck in limited" — joint-train with a
+format token, keep the model aimed at trophy-winning decks, and test the
+sealed-bombs hypothesis by fine-tuning toward winning sealed decks.
+
+Mechanism (additive; old checkpoints unaffected, tests/test_format_token.py):
+DeckBuilder(formats=True) adds a zero-init 2-row format embedding to every
+pool slot; DeckCorpusTrainer takes corpora=[{manifest, boost}] and reports
+per-format proxy val. EXP-135: decks_v2 + sealed_v1 (boost 4.0 → sealed 27%
+of samples), warm start EXP-126 × lr 3e-4 (the EXP-134 recipe), 4.0M builds,
+best at epoch 5 of 9 (2.4h).
+
+Result — the joint bet paid on the seen-set axis and cost nothing on draft:
+- Draft decks preserved: MSH 0.8989 (EXP-126: 0.9004), EOE 0.8987 (0.8981),
+  EOE none 0.8327 (0.8347) — all ≤0.2pt, noise.
+- TLA sealed 0.7576 trophy — best of the program, zero per-set fine-tune
+  (EXP-130 needed one to hit 0.7570; EXP-134 alone: 0.7516).
+- Epoch 5 beat BOTH solo trunks simultaneously on proxies (draft 0.9048 /
+  sealed 0.7146) — the draft gradient does lift sealed past its solo plateau.
+- The one concession: EOE sealed holdout 0.6328/0.5231 vs EXP-134's
+  0.6421/0.5432 — the sealed-only trunk keeps a 1-2pt day-0/day-1 edge on an
+  unseen set. Next-set recipe stays "refresh the joint corpus on release."
+
+Annealing probes (sealed-only continue-train of EXP-135): EXP-136 (uniform)
+flat everywhere. EXP-137 (win_skill — the bombs hypothesis) gained +1pt on
+sealed proxies AND +0.9pt on TLA 7-win-F1 (0.7775, best of program), but was
+flat on TLA/EOE trophy-F1 — directional support, not promotion-grade. Filed
+as the first lever to revisit when sealed data grows.
+
+PRODUCTION: EXP-135 (build CLI default with --format sealed; bundle swaps
+EXP-134 → EXP-135). HUD deck models untouched (EXP-126/127 per handoff — a
+swap to EXP-135 would need its own HUD-side validation). One trunk now
+builds trophy-class decks in both limited formats.

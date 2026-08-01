@@ -24,10 +24,10 @@ from draftbot.data.cards import PROCESSED_DIR, name_to_id, norm_name
 from draftbot.data.dataset import PAD
 from draftbot.data.deck_dataset import DeckArrays, land_flags
 
-# Sealed corpus trunk (P5.S production pick 2026-07-31): works for any
-# onboarded --set, any stats mode. On TLA it's within noise of the per-set
-# fine-tunes (EXP-130/133) — same in-corpus-needs-no-FT finding as draft.
-DEFAULT_CKPT = "checkpoints/EXP-134"
+# Joint draft+sealed trunk (P5.S joint program, 2026-08-01): format token
+# defaults to sealed here (--format draft for draft pools). Best TLA sealed
+# number of the program (0.7576) with draft decks preserved at EXP-126 level.
+DEFAULT_CKPT = "checkpoints/EXP-135"
 
 _LINE = re.compile(r"^(?:(\d+)\s+)?(.+?)(?:\s+\([A-Z0-9]{2,6}\)\s+\S+)?$")
 _SECTIONS = {"deck", "sideboard", "commander", "companion", "about"}

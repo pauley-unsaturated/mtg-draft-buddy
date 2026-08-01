@@ -104,6 +104,9 @@ pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
 | EXP-128 | EXP-128@best | EOE | val | full | 0.8937 | 0.8618 | 0.8991 | 0.546 | 0.8976 | 0.173 | 1.942 | configs/EXP-128.yaml | 477a36a | 4.2h | 2026-07-31 |
 | EXP-129 | EXP-129@best | MSH | val | full | 0.8921 | 0.8701 | 0.9002 | 0.467 | 0.8988 | 0.242 | 2.123 | configs/EXP-129.yaml | 477a36a | 7min | 2026-07-31 |
 | EXP-126 | EXP-126@best | MSH | val | full | 0.8921 | 0.8694 | 0.9004 | 0.456 | 0.8984 | 0.242 | 2.094 | configs/EXP-126.yaml | f1d03f9 | 4.9h | 2026-07-31 |
+| EXP-135 | EXP-135@best | MSH | val | full | 0.8904 | 0.8683 | 0.8989 | 0.505 | 0.8968 | 0.241 | 2.169 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
+| EXP-135 | EXP-135@best | EOE | val | full | 0.8926 | 0.8624 | 0.8987 | 0.537 | 0.8967 | 0.180 | 2.051 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
+| EXP-135 | EXP-135@best | EOE | val | none | 0.8311 | 0.7660 | 0.8327 | 0.555 | 0.8326 | 0.195 | 2.348 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
 
 ### Sealed decks (P5.S — additive; draft rows above unaffected)
 
@@ -135,3 +138,12 @@ Rows are on the curated extraction (deck 40-43, pool-consistent rebuilds;
 | EXP-134 | EXP-134@best | EOE/sealed | val | full | 0.6075 | 0.5973 | 0.6421 | 0.611 | 0.6249 | 0.146 | 12.094 | configs/EXP-134.yaml | e3d7116 | 24min | 2026-08-01 |
 | EXP-134 | EXP-134@best | EOE/sealed | val | none | 0.5200 | 0.4823 | 0.5432 | 0.519 | 0.5338 | 0.146 | 13.593 | configs/EXP-134.yaml | e3d7116 | 24min | 2026-08-01 |
 | EXP-133 | EXP-133@best | TLA/sealed | val | full | 0.7270 | 0.7158 | 0.7548 | 0.286 | 0.7467 | 0.294 | 7.783 | configs/EXP-133.yaml | e3d7116 | 0.4min | 2026-08-01 |
+| EXP-135 | EXP-135@best | TLA/sealed | val | full | 0.7278 | 0.7166 | 0.7576 | 0.250 | 0.7484 | 0.294 | 7.786 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
+| EXP-135 | EXP-135@best | EOE/sealed | val | full | 0.6022 | 0.5904 | 0.6328 | 0.556 | 0.6181 | 0.146 | 12.187 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
+| EXP-135 | EXP-135@best | EOE/sealed | val | none | 0.5082 | 0.4689 | 0.5231 | 0.519 | 0.5186 | 0.146 | 13.797 | configs/EXP-135.yaml | b79aa9d | 2.4h | 2026-08-01 |
+| EXP-136 | EXP-136@best | TLA/sealed | val | full | 0.7279 | 0.7150 | 0.7559 | 0.321 | 0.7478 | 0.285 | 7.683 | configs/EXP-136.yaml | b79aa9d | 8min | 2026-08-01 |
+| EXP-136 | EXP-136@best | EOE/sealed | val | full | 0.6022 | 0.5895 | 0.6305 | 0.556 | 0.6175 | 0.146 | 12.158 | configs/EXP-136.yaml | b79aa9d | 8min | 2026-08-01 |
+| EXP-136 | EXP-136@best | EOE/sealed | val | none | 0.5162 | 0.4752 | 0.5373 | 0.500 | 0.5277 | 0.146 | 13.538 | configs/EXP-136.yaml | b79aa9d | 8min | 2026-08-01 |
+| EXP-137 | EXP-137@best | TLA/sealed | val | full | 0.7267 | 0.7153 | 0.7551 | 0.321 | 0.7464 | 0.307 | 7.799 | configs/EXP-137.yaml | b79aa9d | 14min | 2026-08-01 |
+| EXP-137 | EXP-137@best | EOE/sealed | val | full | 0.5976 | 0.5815 | 0.6321 | 0.611 | 0.6153 | 0.146 | 12.140 | configs/EXP-137.yaml | b79aa9d | 14min | 2026-08-01 |
+| EXP-137 | EXP-137@best | EOE/sealed | val | none | 0.5190 | 0.4778 | 0.5333 | 0.556 | 0.5292 | 0.146 | 13.407 | configs/EXP-137.yaml | b79aa9d | 14min | 2026-08-01 |

@@ -55,8 +55,14 @@ gih-top23 0.5205, gih-in-lane 0.6024.
 - **In-corpus-needs-no-FT replicates:** TLA trophy band 0.7516–0.7570 across
   EXP-130/131/133/134. Production = EXP-134 (CLI default, in bundle);
   EXP-130/133 kept as TLA-max variants.
-- Future levers (new proposals, not tweaks): more sealed data over time;
-  joint draft+sealed training with a format token.
+- **Joint program (2026-08-01): EXP-135 supersedes EXP-134 as production.**
+  Format token (zero-init, additive) + joint corpora (sealed boost 4.0):
+  draft decks preserved at EXP-126 level (≤0.2pt), TLA sealed 0.7576 with no
+  per-set FT. EXP-134 keeps a 1-2pt edge on the unseen-set sealed holdout;
+  next-set recipe = refresh the joint corpus. Annealing probes: uniform flat;
+  win_skill (bombs hypothesis) +1pt proxies / +0.9pt TLA 7-win-F1 but flat
+  trophy-F1 — the first lever to revisit as sealed data grows.
+- Remaining future lever: sealed data volume (17lands accrues it weekly).
 
 ## Day-0 workflow for the NEXT sealed event
 

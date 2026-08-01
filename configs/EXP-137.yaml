@@ -1,0 +1,28 @@
+# Sealed annealing of the joint trunk EXP-135 — WIN-SKILL weighting.
+# Owner hypothesis (2026-08-01): bombs matter more in sealed, so weight
+# training toward builds that actually won: (1 + n_wins) * soft_skill(WR).
+# Uniform beat this on DRAFT decks (EXP-103-era finding); sealed may differ.
+# Control: EXP-136 (identical but uniform).
+exp: EXP-137
+task: deck
+model: builder
+formats: true
+corpus: configs/corpus/sealed_v1.yaml
+seed: 17
+init_from: checkpoints/EXP-135
+scaler_from: checkpoints/EXP-135
+batch_builds: 256
+epochs: 24
+patience: 3
+emb_dim: 128
+heads: 8
+blocks: 3
+dropout: 0.1
+weighting: win_skill
+land_lambda: 0.2
+basics_lambda: 0.5
+stat_dropout: 0.25
+peak_lr: 1.5e-4
+lr_warmup: 300
+weight_decay: 0.01
+grad_clip: 1.0

@@ -17,10 +17,10 @@ import sys
 import tarfile
 from pathlib import Path
 
-# Production set as of 2026-07-31 (journal: probe series closed):
+# Production set as of 2026-08-01 (journal: joint program closed):
 # draft advisor, deck lock-and-rebuild, deck trunk, deck MSH fine-tune,
-# sealed deck trunk (P5.S).
-DEFAULT_CHECKPOINTS = ["EXP-033", "EXP-116", "EXP-126", "EXP-127", "EXP-134"]
+# joint draft+sealed trunk (P5.S joint; supersedes the sealed-only EXP-134).
+DEFAULT_CHECKPOINTS = ["EXP-033", "EXP-116", "EXP-126", "EXP-127", "EXP-135"]
 BUNDLE = Path("laptop-bundle.tar.gz")
 
 
