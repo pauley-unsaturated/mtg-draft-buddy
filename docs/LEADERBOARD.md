@@ -110,12 +110,14 @@ pool (91 val pairs — underpowered at val scale; treat ±0.05 as noise).
 Sealed pools ≈ 84 unfiltered nonbasics — color choice dominates the task, and
 the human ceiling sits lower than draft's (more legitimate builds per pool).
 Winner-pref has ~14 val pairs on TLA: reported, but statistically meaningless.
+Rows are on the curated extraction (deck 40-43, pool-consistent rebuilds;
+~1% dropped, logged) — pre-curation rows differed by ≤0.001.
 
 | EXP | Model | Set | Split | Stats | F1 | NB-F1 | Trophy-F1v2 | Win-pref | Win-wtd F1 | Lands-MAE | Basics-L1 | Config | SHA | Wall-clock | Date |
 |-----|-------|-----|-------|-------|----|-------|-------------|----------|------------|-----------|-----------|--------|-----|------------|------|
-| — | rebuild-ceiling | TLA/sealed | val | full | 0.9060 | 0.9027 | 0.9224 | nan | 0.9358 | 0.179 | 2.709 | baseline | a60f994 | <1min | 2026-08-01 |
-| — | random-legal | TLA/sealed | val | full | 0.4194 | 0.3075 | 0.4232 | 0.643 | 0.4218 | 1.592 | 13.241 | baseline | a60f994 | <1min | 2026-08-01 |
-| — | gih-top23 | TLA/sealed | val | full | 0.5213 | 0.4563 | 0.5437 | 0.536 | 0.5393 | 1.431 | 12.232 | baseline | a60f994 | <1min | 2026-08-01 |
-| — | gih-in-lane-build | TLA/sealed | val | full | 0.6029 | 0.5534 | 0.6354 | 0.464 | 0.6219 | 2.698 | 10.347 | baseline | a60f994 | <1min | 2026-08-01 |
-| EXP-126 | EXP-126@best | TLA/sealed | val | full | 0.6928 | 0.6967 | 0.7201 | 0.321 | 0.7114 | 0.302 | 9.174 | configs/EXP-126.yaml | a60f994 | 0 (zero-shot) | 2026-08-01 |
-| EXP-130 | EXP-130@best | TLA/sealed | val | full | 0.7261 | 0.7162 | 0.7578 | 0.321 | 0.7460 | 0.296 | 7.891 | configs/EXP-130.yaml | a60f994 | 0.8min | 2026-08-01 |
+| — | rebuild-ceiling | TLA/sealed | val | full | 0.9066 | 0.9032 | 0.9224 | nan | 0.9369 | 0.154 | 2.684 | baseline | 2744973 | <1min | 2026-08-01 |
+| — | random-legal | TLA/sealed | val | full | 0.4187 | 0.3068 | 0.4218 | 0.643 | 0.4208 | 1.602 | 13.265 | baseline | 2744973 | <1min | 2026-08-01 |
+| — | gih-top23 | TLA/sealed | val | full | 0.5205 | 0.4556 | 0.5421 | 0.536 | 0.5381 | 1.437 | 12.269 | baseline | 2744973 | <1min | 2026-08-01 |
+| — | gih-in-lane-build | TLA/sealed | val | full | 0.6024 | 0.5527 | 0.6354 | 0.464 | 0.6215 | 2.706 | 10.359 | baseline | 2744973 | <1min | 2026-08-01 |
+| EXP-126 | EXP-126@best | TLA/sealed | val | full | 0.6923 | 0.6964 | 0.7195 | 0.321 | 0.7108 | 0.294 | 9.207 | configs/EXP-126.yaml | 2744973 | 0 (zero-shot) | 2026-08-01 |
+| EXP-130 | EXP-130@best | TLA/sealed | val | full | 0.7269 | 0.7159 | 0.7570 | 0.286 | 0.7473 | 0.282 | 7.828 | configs/EXP-130.yaml | 2744973 | 0.7min | 2026-08-01 |

@@ -1,0 +1,63 @@
+# SEALED deck-corpus manifest v1 (2026-07-31, P5.S done-right phase).
+# Mirrors decks_v2: same weights, EOE held out as the next-set stand-in.
+# MID/VOW/AFR absent — 17lands publishes no sealed data for them. All sets
+# pass the 5-test sealed gate (tests/test_sealed_decks.py) post-curation
+# (40-43 deck size, pool-consistent rebuilds; drop rates logged at extract).
+# Next Arena set joins `quarantine` on announcement day.
+source: sealed
+quarantine: []
+holdout:
+  - EOE
+sets:
+  MKM:
+    weight: 2.0
+  OTJ:
+    weight: 2.0
+  MH3:
+    weight: 2.0
+  BLB:
+    weight: 2.0
+  DSK:
+    weight: 2.0
+  FDN:
+    weight: 2.0
+  PIO:
+    weight: 2.0
+  DFT:
+    weight: 2.0
+  TDM:
+    weight: 2.0
+  FIN:
+    weight: 2.0
+  TLA:
+    weight: 2.0
+  ECL:
+    weight: 2.0
+  MSH:
+    weight: 2.0
+  WOE:
+    weight: 1.0
+  LCI:
+    weight: 1.0
+  DMU:
+    weight: 1.0
+  BRO:
+    weight: 1.0
+  ONE:
+    weight: 1.0
+  MOM:
+    weight: 1.0
+  SIR:
+    weight: 1.0
+  LTR:
+    weight: 1.0
+  KTK:
+    weight: 1.0
+  STX:
+    weight: 1.0
+  NEO:
+    weight: 1.0
+  SNC:
+    weight: 1.0
+  HBG:
+    weight: 1.0

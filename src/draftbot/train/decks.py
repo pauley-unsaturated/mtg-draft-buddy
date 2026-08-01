@@ -366,7 +366,11 @@ class DeckCorpusTrainer:
         codes = list(manifest["sets"])
         banned = set(manifest.get("quarantine", [])) | set(manifest.get("holdout", []))
         assert not (banned & set(codes)), f"banned sets in corpus: {banned & set(codes)}"
-        scaler = fit_corpus_scaler(codes)
+        if cfg.get("scaler_from"):  # warm-start: features scaled as the source saw them
+            from draftbot.data.features import load_scaler
+            scaler = load_scaler(Path(cfg["scaler_from"]) / "scaler.json")
+        else:
+            scaler = fit_corpus_scaler(codes)
         save_scaler(scaler, self.dir / "scaler.json")
 
         source = cfg.get("source", manifest.get("source", "draft"))
@@ -402,6 +406,17 @@ class DeckCorpusTrainer:
             self.val_proxies.append((code, trophy, b["is_land"], b["f_full"]))
 
         self.model = build_deck_model(cfg, self.bundles[0]["f_full"]).to(self.device)
+        if cfg.get("init_from"):  # warm-start (e.g. sealed corpus from the draft trunk)
+            src = Path(cfg["init_from"])
+            src_file = src if src.is_file() else src / "best.pt"
+            state = torch.load(src_file, map_location=self.device,
+                               weights_only=False)["model"]
+            state.pop("card_features", None)
+            own = self.model.state_dict()
+            loadable = {k: v for k, v in state.items()
+                        if k in own and own[k].shape == v.shape}
+            self.model.load_state_dict(loadable, strict=False)
+            print(f"init_from {src_file}: {len(loadable)} tensors loaded")
         n_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         total = sum(b["arr"].n_builds for b in self.bundles)
         print(f"{self.exp}: {n_params/1e6:.2f}M params, {len(self.bundles)} sets, "

@@ -11,6 +11,7 @@ incident).
 import argparse
 import sys
 import tarfile
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -124,6 +125,39 @@ def _event_table(set_code: str, event: str, cards: pd.DataFrame) -> pa.Table:
     }, schema=SCHEMA)
 
 
+def _sealed_clean(df: pd.DataFrame, set_code: str) -> pd.DataFrame:
+    """Sealed-only curation (gate findings 2026-07-31). Two real-data tails the
+    draft gate never saw: ~1-2% of sealed builds are 44-91-card piles (players
+    submitting unbuilt pools) and ~1% of multi-build entries disagree on their
+    own pool by ±1 card (17lands quirk). Both are dropped — oversized piles
+    are junk eval targets, and same-pool rebuilds are load-bearing for the
+    rebuild ceiling and winner-pref. Drop rates are logged, never silent."""
+    n0 = len(df)
+    total = (df["deck_counts"].apply(lambda c: int(np.sum(c)))
+             + df["basics"].apply(lambda b: int(np.sum(b))))
+    df = df[total.between(40, 43)]
+
+    def pool_sig(r):
+        c = Counter({int(i): int(n) for i, n in
+                     zip(r["deck_ids"], r["deck_counts"])})
+        c.update({int(i): int(n) for i, n in
+                  zip(r["side_ids"], r["side_counts"])})
+        return tuple(sorted(c.items()))
+
+    multi = df[df.duplicated("draft_id", keep=False)]
+    if len(multi):
+        sigs = multi.apply(pool_sig, axis=1)
+        n_sigs = sigs.groupby(multi["draft_id"]).nunique()
+        bad = set(n_sigs[n_sigs > 1].index)
+        df = df[~df["draft_id"].isin(bad)]
+    else:
+        bad = set()
+    print(f"{set_code} sealed clean: dropped {n0 - len(df)}/{n0} builds "
+          f"({(total.between(40, 43) == False).sum()} sized outside 40-43, "
+          f"{len(bad)} pool-inconsistent entries)")
+    return df
+
+
 def extract(set_code: str, event: str = "PremierDraft") -> Path:
     """event='PremierDraft' → decks.parquet; event='sealed' → merge the Sealed
     and TradSealed game files (whichever are downloaded) into
@@ -139,6 +173,8 @@ def extract(set_code: str, event: str = "PremierDraft") -> Path:
                              "data/raw — download them first")
         table = pa.concat_tables([_event_table(set_code, e, cards)
                                   for e in events])
+        df = _sealed_clean(table.to_pandas(), set_code)
+        table = pa.Table.from_pandas(df, schema=SCHEMA, preserve_index=False)
         out_path = PROCESSED_DIR / set_code / "decks.sealed.parquet"
         label = "+".join(events)
     else:
