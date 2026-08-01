@@ -21,8 +21,8 @@ from rich.table import Table
 from rich.text import Text
 
 from draftbot.hud.advisor import Advisor
-from draftbot.hud.follower import DEFAULT_LOG, LogFollower, PackSeen
-from draftbot.hud.state import DraftState
+from draftbot.hud.follower import DEFAULT_LOG, LogFollower, PackSeen, SealedPool
+from draftbot.hud.state import DraftState, SealedState
 
 RARITY_STYLE = {"mythic": "bold orange1", "rare": "gold3",
                 "uncommon": "grey70", "common": "white"}
@@ -33,6 +33,10 @@ PIPS = "WUBRG"
 # with diffusion=True, i.e. the only one that conditions on locks natively.
 PROD_DRAFT_MODELS = "checkpoints/EXP-033"
 PROD_DECK_MODELS = "checkpoints/EXP-126,checkpoints/EXP-116"
+# sealed mode (P5.S4): the joint trunk with the sealed format token. No
+# diffusion slot — locks go through the probability-pinning fallback, which
+# keeps the sealed-aware model in charge rather than the draft-trained EXP-116.
+PROD_SEALED_DECK_MODELS = "checkpoints/EXP-135"
 
 
 def render(state: DraftState, ranked: dict, pips: list[int]) -> Table:
@@ -150,6 +154,43 @@ def make_deck_advisor(args, set_code: str):
                        rebuild_ckpt=paths[1] if len(paths) > 1 else None)
 
 
+def make_sealed_advisor(args, set_code: str):
+    """Sealed-mode DeckAdvisor (format token = sealed), or None if absent."""
+    from draftbot.hud.deck import DeckAdvisor
+
+    paths = [Path(p.strip()) for p in args.sealed_deck_models.split(",")
+             if p.strip()]
+    paths = [p for p in paths if p.exists()]
+    if not paths:
+        return None
+    return DeckAdvisor(set_code=set_code, stats=args.stats,
+                       primary_ckpt=paths[0],
+                       rebuild_ckpt=paths[1] if len(paths) > 1 else None,
+                       format_id=1)
+
+
+def sealed_snapshot(sealed: SealedState, stats: str) -> dict:
+    """Minimal /state payload for sealed mode — the deck section carries the
+    content; this keeps the header/status/footer coherent."""
+    return {
+        "status": "live", "pos_label": "SEALED",
+        "picks_count": len(sealed.pool),
+        "pool_pips": [0] * 5, "curve": [0] * 7,
+        "stats_mode": stats,
+        "status_line": f"{sealed.set_code} sealed · {stats} stats",
+        "version": "v0.1", "suggestions": [], "alt_top1": None,
+    }
+
+
+def sealed_action(action: str, payload: dict, adv, sealed: SealedState):
+    """Panel POSTs in sealed mode — same lock verbs, whole-pool rebuilds."""
+    if action == "lock":
+        adv.set_lock(int(payload["card_id"]), payload.get("mode"))
+    elif action == "clear_locks":
+        adv.clear_locks()
+    return adv.build(sealed.pool, provisional=False, keep_diff=True)
+
+
 def refresh_deck(server, adv, state: DraftState, args, built: int,
                  final: bool = False) -> int:
     """Rebuild the deck section when the pool moved on. Returns the pick count
@@ -217,6 +258,9 @@ def main(argv=None):
     ap.add_argument("--deck-models", default=PROD_DECK_MODELS,
                     help=f"one-shot builder[,diffusion builder for lock+rebuild] "
                          f"(default {PROD_DECK_MODELS})")
+    ap.add_argument("--sealed-deck-models", default=PROD_SEALED_DECK_MODELS,
+                    help=f"builder for sealed pools found in the log "
+                         f"(default {PROD_SEALED_DECK_MODELS})")
     ap.add_argument("--no-deck", action="store_true",
                     help="skip the deck-builder section (HUD_PLAN H5)")
     ap.add_argument("--provisional-from", type=int, default=30,
@@ -227,6 +271,7 @@ def main(argv=None):
 
     console = Console()
     state = DraftState()
+    sealed = SealedState()
     advisor = None
     scorers = None
     follower = LogFollower(args.replay or args.log, replay=args.replay is not None)
@@ -234,6 +279,12 @@ def main(argv=None):
 
     with Live(console=console, auto_refresh=False) as live:
         for ev in follower.events():
+            if isinstance(ev, SealedPool):
+                if sealed.apply(ev) and not args.no_deck:
+                    adv = make_sealed_advisor(args, sealed.set_code)
+                    if adv is not None:
+                        console.print(render_deck(adv.build(sealed.pool)))
+                continue
             changed = state.apply(ev)
             if not changed or not isinstance(ev, PackSeen):
                 continue
@@ -277,12 +328,28 @@ def window_main(args):
         webbrowser.open(url)
 
     state = DraftState()
+    sealed = SealedState()
     advisor = None
     scorers = None
     deck_adv = None
+    sealed_adv = None
     built = -1
     follower = LogFollower(args.replay or args.log, replay=args.replay is not None)
     for ev in follower.events():
+        if isinstance(ev, SealedPool):
+            if sealed.apply(ev) and not args.no_deck:
+                if sealed_adv is None or sealed_adv.set_code != sealed.set_code:
+                    sealed_adv = make_sealed_advisor(args, sealed.set_code)
+                    if sealed_adv is not None:
+                        server.set_action_handler(
+                            lambda a, p: sealed_action(a, p, sealed_adv, sealed))
+                        server.set_art_urls(art_url_map(sealed.set_code))
+                if sealed_adv is not None:
+                    sealed_adv.preload()
+                    server.update(sealed_snapshot(sealed, args.stats))
+                    server.update_deck(
+                        sealed_adv.build(sealed.pool, provisional=False))
+            continue
         changed = state.apply(ev)
         if state.set_code and deck_adv is None and not args.no_deck:
             deck_adv = make_deck_advisor(args, state.set_code)

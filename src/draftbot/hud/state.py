@@ -18,7 +18,7 @@ from draftbot.data.cards import (COMPANION_SHEETS, PROCESSED_DIR,
                                  SCRYFALL_CACHE_DIR, name_to_id, norm_name)
 from draftbot.data.dataset import PAD
 from draftbot.hud.follower import (DraftCompleted, DraftJoined, PackSeen,
-                                   PickMade, set_code_from_event)
+                                   PickMade, SealedPool, set_code_from_event)
 
 
 _GLOBAL_GRP_INDEX: dict[int, str] | None = None
@@ -197,3 +197,50 @@ class DraftState:
 
     def pool_ids(self) -> list[int]:
         return list(self.picks)
+
+
+_BASIC_IDS: dict[str, set[int]] = {}
+
+
+def _basic_ids(set_code: str) -> set[int]:
+    if set_code not in _BASIC_IDS:
+        cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
+        _BASIC_IDS[set_code] = set(cards.loc[cards["is_basic"] == 1, "id"])
+    return _BASIC_IDS[set_code]
+
+
+@dataclass
+class SealedState:
+    """Sealed pool from the course messages (P5.S4). No picks to track — the
+    pool arrives whole; basics are dropped per the pool-identity rule (the
+    basics head owns the manabase). grp→vocab mapping reuses DraftState's
+    resolver, including the /cards/arena variant-printing fallback."""
+
+    set_code: str | None = None
+    event_name: str | None = None
+    course_id: str | None = None
+    pool: list[int] = field(default_factory=list)   # vocab ids, nonbasics
+    unknown_grps: set[int] = field(default_factory=set)
+    _mapper: DraftState | None = None
+
+    def apply(self, ev) -> bool:
+        """Consume one event; True if the pool changed."""
+        if not isinstance(ev, SealedPool):
+            return False
+        if ev.course_id and ev.course_id == self.course_id and self.pool:
+            return False   # course re-announced (relaunch, module change)
+        code = set_code_from_event(ev.event_name) or infer_set(ev.card_ids)
+        if code is None:
+            return False
+        if self._mapper is None or code != self.set_code:
+            self.set_code = code
+            self._mapper = DraftState(set_code=code, _grp_map=grp_to_vocab(code))
+        vids = self._mapper._map(ev.card_ids)
+        self.unknown_grps |= self._mapper.unknown_grps
+        basics = _basic_ids(code)
+        pool = [v for v in vids if v not in basics]
+        if not pool:
+            return False
+        self.pool = pool
+        self.event_name, self.course_id = ev.event_name, ev.course_id
+        return True

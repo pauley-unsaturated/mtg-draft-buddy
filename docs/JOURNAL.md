@@ -879,3 +879,28 @@ PRODUCTION: EXP-135 (build CLI default with --format sealed; bundle swaps
 EXP-134 → EXP-135). HUD deck models untouched (EXP-126/127 per handoff — a
 swap to EXP-135 would need its own HUD-side validation). One trunk now
 builds trophy-class decks in both limited formats.
+
+## 2026-08-01 — HUD sealed mode shipped against a LIVE pool (P5.S4)
+
+Owner joined the ArenaDirect TLA sealed event; the Player.log capture became
+the parser spec: the Event_Join response carries a Course object with
+CardPool (84 grpIds) — same shape in the relaunch courses list. Port landed
+in one pass because every risky piece pre-existed: grp→vocab mapping went
+84/84 with zero /cards/arena fallbacks, DeckAdvisor.build() already takes a
+flat pool, and the panel auto-switches to the build view on a
+non-provisional deck.
+
+Additive surface: SealedPool event + buffer-scanning _sealed_pools() in the
+follower ("Sealed" in InternalEventName gates it — draft courses can't
+hijack), SealedState (reuses DraftState's resolver, drops basics per pool
+identity), DeckAdvisor.format_id, PROD_SEALED_DECK_MODELS=EXP-135. Locks in
+sealed use the probability-pinning path deliberately — it keeps the
+sealed-aware joint model in charge instead of the draft-trained EXP-116.
+Draft flow untouched; suite green.
+
+Fixture tests/fixtures/real_sealed_tla.log (sanitized: GUIDs zeroed, styles/
+collation/summary stripped, CardPool intact). tests/test_hud_sealed.py:
+parser → state (80 nonbasics after dropping 4 pool basics) → legal 40 →
+lock-respect. Replay renders the same build the CLI produced for the same
+pool — WU Katara/Fortune-Teller with a 2-Mountain/1-Forest splash off North
+Pole Gates.

@@ -50,6 +50,7 @@ class DeckAdvisor:
     stats: str = "full"
     primary_ckpt: Path | None = None
     rebuild_ckpt: Path | None = None
+    format_id: int = 0        # 0=draft, 1=sealed (formats checkpoints only)
     locks: dict[int, str] = field(default_factory=dict)  # card_id -> in|out
     _primary: object | None = None
     _rebuild: object | None = None
@@ -79,10 +80,14 @@ class DeckAdvisor:
         if self.primary_ckpt:
             self._primary = deck_builder_from_checkpoint(
                 self.primary_ckpt, self.set_code, self.stats)
+            if getattr(self._primary.model, "formats", False):
+                self._primary.format_id = self.format_id
         if self.rebuild_ckpt:
             try:
                 self._rebuild = deck_builder_from_checkpoint(
                     self.rebuild_ckpt, self.set_code, self.stats)
+                if getattr(self._rebuild.model, "formats", False):
+                    self._rebuild.format_id = self.format_id
             except Exception:   # optional: the panel degrades to pinned locks
                 self._rebuild = None
 
