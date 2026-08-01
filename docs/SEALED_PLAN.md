@@ -45,7 +45,18 @@ gih-top23 0.5205, gih-in-lane 0.6024.
   0.6923/0.7195 — lands-MAE already excellent (0.29) but basics-L1 9.2.
 - **EXP-130** (TLA sealed fine-tune of EXP-126, 0.7min): 0.7269/0.7570.
   9.6k builds close a third of the gap; the corpus pretrain owns the rest.
-- EXP-131 (sealed corpus, warm-start) vs EXP-132 (scratch): pending.
+- **Corpus verdict (2026-07-31): EXP-134 is the sealed trunk.** Warm start ×
+  scratch LR (3e-4, patience 4) → 0.7123 proxies; EXP-131 (warm, FT-lr)
+  stalls at its starting point, EXP-132 (scratch) plateaus lower (0.7051).
+  All three land near ~0.71 — sealed is DATA-bound (335k builds = 1/11 of
+  decks_v2), not init- or scale-bound.
+- **Holdout (EOE sealed, ceiling 0.8971 trophy):** EXP-134 0.6421 full /
+  0.5432 none vs draft trunk 0.5708/0.4795 — the sealed corpus transfers.
+- **In-corpus-needs-no-FT replicates:** TLA trophy band 0.7516–0.7570 across
+  EXP-130/131/133/134. Production = EXP-134 (CLI default, in bundle);
+  EXP-130/133 kept as TLA-max variants.
+- Future levers (new proposals, not tweaks): more sealed data over time;
+  joint draft+sealed training with a format token.
 
 ## Day-0 workflow for the NEXT sealed event
 

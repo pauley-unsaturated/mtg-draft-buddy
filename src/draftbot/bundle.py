@@ -18,8 +18,9 @@ import tarfile
 from pathlib import Path
 
 # Production set as of 2026-07-31 (journal: probe series closed):
-# draft advisor, deck lock-and-rebuild, deck trunk, deck MSH fine-tune.
-DEFAULT_CHECKPOINTS = ["EXP-033", "EXP-116", "EXP-126", "EXP-127"]
+# draft advisor, deck lock-and-rebuild, deck trunk, deck MSH fine-tune,
+# sealed deck trunk (P5.S).
+DEFAULT_CHECKPOINTS = ["EXP-033", "EXP-116", "EXP-126", "EXP-127", "EXP-134"]
 BUNDLE = Path("laptop-bundle.tar.gz")
 
 

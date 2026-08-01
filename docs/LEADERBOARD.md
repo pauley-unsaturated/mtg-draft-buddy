@@ -121,3 +121,17 @@ Rows are on the curated extraction (deck 40-43, pool-consistent rebuilds;
 | — | gih-in-lane-build | TLA/sealed | val | full | 0.6024 | 0.5527 | 0.6354 | 0.464 | 0.6215 | 2.706 | 10.359 | baseline | 2744973 | <1min | 2026-08-01 |
 | EXP-126 | EXP-126@best | TLA/sealed | val | full | 0.6923 | 0.6964 | 0.7195 | 0.321 | 0.7108 | 0.294 | 9.207 | configs/EXP-126.yaml | 2744973 | 0 (zero-shot) | 2026-08-01 |
 | EXP-130 | EXP-130@best | TLA/sealed | val | full | 0.7269 | 0.7159 | 0.7570 | 0.286 | 0.7473 | 0.282 | 7.828 | configs/EXP-130.yaml | 2744973 | 0.7min | 2026-08-01 |
+| — | rebuild-ceiling | EOE/sealed | val | full | 0.8157 | 0.8064 | 0.8971 | nan | 0.8558 | 0.082 | 5.451 | baseline | e3d7116 | <1min | 2026-08-01 |
+| — | gih-in-lane-build | EOE/sealed | val | full | 0.5209 | 0.4963 | 0.5504 | 0.537 | 0.5306 | 1.226 | 14.649 | baseline | e3d7116 | <1min | 2026-08-01 |
+| EXP-126 | EXP-126@best | EOE/sealed | val | full | 0.5516 | 0.5513 | 0.5708 | 0.500 | 0.5616 | 0.146 | 14.144 | configs/EXP-126.yaml | e3d7116 | 0 (zero-shot) | 2026-08-01 |
+| EXP-126 | EXP-126@best | EOE/sealed | val | none | 0.4702 | 0.4377 | 0.4795 | 0.574 | 0.4780 | 0.146 | 14.965 | configs/EXP-126.yaml | e3d7116 | 0 (zero-shot) | 2026-08-01 |
+| EXP-131 | EXP-131@best | TLA/sealed | val | full | 0.7280 | 0.7176 | 0.7533 | 0.286 | 0.7455 | 0.282 | 7.841 | configs/EXP-131.yaml | e3d7116 | 13min | 2026-08-01 |
+| EXP-131 | EXP-131@best | EOE/sealed | val | full | 0.6021 | 0.5932 | 0.6335 | 0.574 | 0.6191 | 0.146 | 12.335 | configs/EXP-131.yaml | e3d7116 | 13min | 2026-08-01 |
+| EXP-131 | EXP-131@best | EOE/sealed | val | none | 0.5061 | 0.4675 | 0.5319 | 0.500 | 0.5183 | 0.146 | 13.994 | configs/EXP-131.yaml | e3d7116 | 13min | 2026-08-01 |
+| EXP-132 | EXP-132@best | TLA/sealed | val | full | 0.7133 | 0.7028 | 0.7355 | 0.321 | 0.7276 | 0.294 | 8.421 | configs/EXP-132.yaml | e3d7116 | 23min | 2026-08-01 |
+| EXP-132 | EXP-132@best | EOE/sealed | val | full | 0.6011 | 0.5861 | 0.6314 | 0.537 | 0.6202 | 0.146 | 12.156 | configs/EXP-132.yaml | e3d7116 | 23min | 2026-08-01 |
+| EXP-132 | EXP-132@best | EOE/sealed | val | none | 0.5203 | 0.4905 | 0.5464 | 0.407 | 0.5325 | 0.146 | 13.737 | configs/EXP-132.yaml | e3d7116 | 23min | 2026-08-01 |
+| EXP-134 | EXP-134@best | TLA/sealed | val | full | 0.7211 | 0.7131 | 0.7516 | 0.214 | 0.7408 | 0.288 | 8.136 | configs/EXP-134.yaml | e3d7116 | 24min | 2026-08-01 |
+| EXP-134 | EXP-134@best | EOE/sealed | val | full | 0.6075 | 0.5973 | 0.6421 | 0.611 | 0.6249 | 0.146 | 12.094 | configs/EXP-134.yaml | e3d7116 | 24min | 2026-08-01 |
+| EXP-134 | EXP-134@best | EOE/sealed | val | none | 0.5200 | 0.4823 | 0.5432 | 0.519 | 0.5338 | 0.146 | 13.593 | configs/EXP-134.yaml | e3d7116 | 24min | 2026-08-01 |
+| EXP-133 | EXP-133@best | TLA/sealed | val | full | 0.7270 | 0.7158 | 0.7548 | 0.286 | 0.7467 | 0.294 | 7.783 | configs/EXP-133.yaml | e3d7116 | 0.4min | 2026-08-01 |

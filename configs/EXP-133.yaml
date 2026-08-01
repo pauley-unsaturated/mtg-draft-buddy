@@ -1,0 +1,27 @@
+# TLA sealed fine-tune of the SEALED corpus trunk EXP-134 (production probe).
+# Question (mirrors the draft-side EXP-126→127 finding): does per-set FT still
+# pay when the set is already in the sealed corpus? EXP-130 (FT of the DRAFT
+# trunk) = 0.7570; EXP-134 zero-shot = 0.7516.
+exp: EXP-133
+task: deck
+model: builder
+set: TLA
+source: sealed
+stats: full
+seed: 17
+init_from: checkpoints/EXP-134
+scaler_from: checkpoints/EXP-134
+batch_builds: 256
+epochs: 30
+patience: 4
+emb_dim: 128
+heads: 8
+blocks: 3
+dropout: 0.1
+weighting: uniform
+land_lambda: 0.2
+basics_lambda: 0.5
+peak_lr: 1.5e-4
+lr_warmup: 300
+weight_decay: 0.01
+grad_clip: 1.0

@@ -813,3 +813,34 @@ Arena-export parsing, per-card membership confidence, bubble view (weakest
 in / best out). Smoke-run on a real 7-0 val pool produced a legal, coherent
 W-base build with the fixing land honestly at 51%. Winner-pref on sealed val
 is 14 pairs — meaningless at this scale, reported but ignored.
+
+## 2026-07-31 — Sealed corpus program closed: EXP-134 is the sealed trunk (P5.S3)
+
+27-set sweep first: the gate earned its keep immediately — 1-2%/set of sealed
+"builds" are 44-91-card unbuilt piles, and ~1% of LCI/EOE entries disagree
+with their own pool by one card. Both dropped at extract, logged, TLA rows
+refreshed (deltas ≤0.001). Final corpus: 26 sets / 335k train builds,
+sealed_v1 manifest = decks_v2 weights, EOE holdout.
+
+Three trunk runs, one plateau (~0.71 proxy trophy): EXP-131 (EXP-126 warm
+start, FT-class lr 1.5e-4) starts at 0.711 and never improves — a draft trunk
+won't re-shape at that lr. EXP-132 (scratch, 3e-4) climbs 0.658→0.705.
+EXP-134 (warm start × 3e-4, patience 4) = 0.7123, best of the three, lowest
+loss. The sealed-data wall is volume, not init: 335k builds is 1/11 of
+decks_v2.
+
+Holdout story (EOE sealed val, ceiling 0.8971 trophy): sealed corpus
+genuinely transfers — EXP-134 0.6421 full / 0.5432 none vs the draft trunk's
+0.5708/0.4795 (+7.1pt / +6.4pt) and vs in-lane 0.5504. Day-1 sealed is
+~64% of the way from heuristics to the human ceiling with ratings, less
+without — honest but far from the draft-side story (data-bound).
+
+In-corpus-needs-no-FT replicates on sealed: TLA val trophy — EXP-130 (FT of
+draft trunk) 0.7570, EXP-133 (FT of EXP-134) 0.7548, EXP-134 zero-shot
+0.7516, EXP-131 0.7533: a noise band. PRODUCTION: EXP-134 (CLI default,
+added to bundle defaults). EXP-130/133 remain on disk as TLA-max variants.
+
+Gap to ceiling on TLA sealed: 0.7516 vs 0.9066/0.9224 — the big remaining
+lever is sealed data volume; a second one worth a future proposal is joint
+draft+sealed training (shared trunk, format token). Both are new-EXP
+territory, not tweaks.

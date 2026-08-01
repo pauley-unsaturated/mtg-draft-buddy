@@ -24,7 +24,10 @@ from draftbot.data.cards import PROCESSED_DIR, name_to_id, norm_name
 from draftbot.data.dataset import PAD
 from draftbot.data.deck_dataset import DeckArrays, land_flags
 
-DEFAULT_CKPT = "checkpoints/EXP-130"  # TLA sealed fine-tune (fast path)
+# Sealed corpus trunk (P5.S production pick 2026-07-31): works for any
+# onboarded --set, any stats mode. On TLA it's within noise of the per-set
+# fine-tunes (EXP-130/133) — same in-corpus-needs-no-FT finding as draft.
+DEFAULT_CKPT = "checkpoints/EXP-134"
 
 _LINE = re.compile(r"^(?:(\d+)\s+)?(.+?)(?:\s+\([A-Z0-9]{2,6}\)\s+\S+)?$")
 _SECTIONS = {"deck", "sideboard", "commander", "companion", "about"}

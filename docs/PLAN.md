@@ -190,7 +190,7 @@ numbered **EXP-1NN** (own leaderboard section). Stat mode for stage 1 is `full`
 
 - [x] **P5.S1** Sealed data layer as a pure ADDITION (`source="sealed"`, draft defaults untouched): extractor `--event sealed` (Sealed+TradSealed → decks.sealed.parquet, curation logged), per-set `<SET>.sealed.json` splits (persisted once), 5-test sealed gate (tests/test_sealed_decks.py). **DoD:** gate green on every extracted set; full draft suite untouched and green.
 - [x] **P5.S2** TLA fast path: S2a controls (ceiling + baselines + EXP-126 zero-shot), EXP-130 fine-tune, `python -m draftbot.build` pool-paste CLI. **DoD:** owner can build for the live event; leaderboard sealed section.
-- [ ] **P5.S3** Sealed corpus: 27-set sweep (~394k builds), sealed_v1 manifest (EOE holdout), EXP-131 (warm-start from EXP-126) vs EXP-132 (scratch) pretrains, holdout day-0 rows, TLA comparison, production pick. **DoD:** leaderboard rows + journal verdict.
+- [x] **P5.S3** Sealed corpus: 27-set sweep (~394k builds), sealed_v1 manifest (EOE holdout), EXP-131 (warm-start from EXP-126) vs EXP-132 (scratch) pretrains, holdout day-0 rows, TLA comparison, production pick. **DoD:** leaderboard rows + journal verdict.
 - [ ] **P5.S4** (future) Sealed mode in the HUD: pool paste/import → same deck panel; needs its own proposal, scope `src/draftbot/hud/` only.
 
 - [ ] **P5.T2** Draft-table self-play sim (8 bots) for qualitative eval + fixture generation; compare bot-table pick orders to human ALSA.

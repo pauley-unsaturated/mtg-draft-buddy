@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from draftbot.build import parse_pool
+from draftbot.build import DEFAULT_CKPT, parse_pool
 
 CARDS = Path("data/processed/TLA/cards.parquet")
-CKPT = Path("checkpoints/EXP-130/best.pt")
+CKPT = Path(DEFAULT_CKPT) / "best.pt"
 
 
 def test_parse_pool_formats():
