@@ -1,0 +1,40 @@
+{
+ "model": "gih-in-lane-build",
+ "set": "TLA",
+ "split": "val",
+ "stats": "full",
+ "scheme": "random",
+ "task": "deck",
+ "event": "sealed",
+ "trophy_view": "winningest-build v2 (owner refinement 2026-07-30)",
+ "git_sha": "a60f994",
+ "generated_at": "2026-08-01T00:44:21+00:00",
+ "n_builds": 311,
+ "n_trophy": 88,
+ "metrics": {
+  "deck_f1": 0.6029450133181713,
+  "nonbasic_f1": 0.5533566645309967,
+  "trophy_f1": 0.6353933534693339,
+  "trophy7_f1": 0.6391798941798941,
+  "trophy_lands_mae": 2.3863636363636362,
+  "win_weighted_f1": 0.6218665493436905,
+  "lands_mae": 2.697749196141479,
+  "basics_l1": 10.347266881028938,
+  "curve_l1": 8.553054662379422,
+  "legal_rate": 1.0,
+  "winner_pref": 0.4642857142857143
+ },
+ "slices": {
+  "f1_by_wins": {
+   "0": 0.5676007147498376,
+   "1": 0.5781147310265372,
+   "2": 0.6064442315879099,
+   "3": 0.5960585278166579,
+   "4": 0.5955300127713922,
+   "5": 0.6439300411522634,
+   "6": 0.6184964162798775,
+   "7": 0.6391798941798941
+  }
+ },
+ "n_winner_pairs": 14
+}

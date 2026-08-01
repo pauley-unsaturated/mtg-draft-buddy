@@ -780,3 +780,36 @@ the HUD as already wired.
 Scryfall cache; training data excluded). Defaults to the frozen production
 checkpoints (EXP-033/116/126/127). Next-set workflow documented in the module
 docstring. Smoke test in tests/test_bundle.py.
+
+## 2026-07-31 — Sealed fast path: TLA event support in half a day (P5.S)
+
+Owner request: help building decks for the live Avatar sealed event. Corrected
+the target first — Scryfall has no "AVA"; the set is TLA, already onboarded
+with full stats and 114k draft builds inside decks_v2. 17lands DOES publish
+sealed game data (Sealed + TradSealed, every corpus set, schema-identical to
+draft game files) — and sealed needs NO draft-log join: pool = deck ∪ side by
+construction, so the AFR failure class doesn't exist here.
+
+Shipped as a pure ADDITION (owner constraint mid-build: nothing draft-side
+may move): `source="sealed"` threads through extractor/splits/dataset/eval/
+trainer with `draft` defaults everywhere; new artifacts only
+(decks.sealed.parquet, <SET>.sealed.json, tests/test_sealed_decks.py — the
+5-test gate with pool-size sanity replacing the draft-log identity test).
+Full suite green, all 11 skips pre-existing. TLA: 9,628 sealed builds /
+5,950 pools (extraction seconds).
+
+S2a controls (TLA sealed val, full stats) tell the story: human rebuild
+ceiling 0.9060 F1 / 0.9224 trophy — LOWER than draft's 0.95, as predicted
+(84-card unfiltered pools admit more legitimate builds). EXP-126 zero-shot
+0.6928/0.7201: beats every heuristic (in-lane 0.6029, gih-top23 0.5213,
+random 0.4194) but ~21pt off ceiling — the draft→sealed shift is COLOR choice:
+lands-MAE is already excellent (0.30) while basics-L1 is 9.2. EXP-130
+(EXP-127 recipe on TLA sealed, 0.8min) closes to 0.7261/0.7578 (+3.8pt
+trophy). 9.6k builds can't teach sealed color selection alone — that is the
+sealed-corpus pretrain's job (next entry).
+
+Owner interface: `python -m draftbot.build --set TLA --pool pool.txt` —
+Arena-export parsing, per-card membership confidence, bubble view (weakest
+in / best out). Smoke-run on a real 7-0 val pool produced a legal, coherent
+W-base build with the fixing land honestly at 51%. Winner-pref on sealed val
+is 14 pairs — meaningless at this scale, reported but ignored.

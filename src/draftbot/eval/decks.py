@@ -20,9 +20,9 @@ import pandas as pd
 
 from draftbot.data.cards import PROCESSED_DIR
 from draftbot.data.deck_dataset import (DeckArrays, arrays_from_deck_df,
-                                        example_weights, land_flags,
-                                        load_deck_arrays, most_played,
-                                        winningest)
+                                        deck_parquet_path, example_weights,
+                                        land_flags, load_deck_arrays,
+                                        most_played, winningest)
 from draftbot.data.splits import load_splits
 
 DECK_SIZE = 40
@@ -134,8 +134,9 @@ def compute_deck_scorecard(main_arr: DeckArrays, main_builds: list[dict],
 
 def render_deck_markdown(card: dict) -> str:
     m = card["metrics"]
+    event = "" if card.get("event", "draft") == "draft" else " sealed"
     return "\n".join([
-        f"### {card['model']} — {card['set']} {card['split']} decks "
+        f"### {card['model']} — {card['set']}{event} {card['split']} decks "
         f"(stats: {card['stats']})",
         "",
         "| F1 | NB-F1 | trophy-F1 | 7-win-F1 | win-pref | win-wtd F1 "
@@ -156,7 +157,9 @@ def render_deck_markdown(card: dict) -> str:
 
 def deck_leaderboard_row(card: dict, exp: str, config: str, wall: str) -> str:
     m = card["metrics"]
-    return (f"| {exp} | {card['model']} | {card['set']} | {card['split']} "
+    set_cell = card["set"] + ("" if card.get("event", "draft") == "draft"
+                              else "/sealed")
+    return (f"| {exp} | {card['model']} | {set_cell} | {card['split']} "
             f"| {card['stats']} | {m['deck_f1']:.4f} | {m['nonbasic_f1']:.4f} "
             f"| {m['trophy_f1']:.4f} "
             f"| {m.get('winner_pref', float('nan')):.3f} "
@@ -279,14 +282,15 @@ def _builds_of(arr: DeckArrays) -> list[dict]:
             (_true_build(arr, i) for i in range(arr.n_builds))]
 
 
-def rebuild_ceiling_views(set_code: str, split_ids: set[str]):
+def rebuild_ceiling_views(set_code: str, split_ids: set[str],
+                          source: str = "draft"):
     """Human self-agreement pairs for both eval views (multi-build drafts).
 
     Main view: second-most-played build predicts the most-played one; meta
     wins = DRAFT totals (a run's wins are split across builds). Trophy view:
     the OTHER best attempt predicts the build that trophied (≥5 wins) — this
     ceiling is harder, since the other attempt is often the pre-fix build."""
-    df = pd.read_parquet(PROCESSED_DIR / set_code / "decks.parquet")
+    df = pd.read_parquet(deck_parquet_path(set_code, source))
     df = df[df["draft_id"].isin(split_ids)]
     multi = df[df.duplicated("draft_id", keep=False)]
 
@@ -309,13 +313,13 @@ def rebuild_ceiling_views(set_code: str, split_ids: set[str]):
 
 
 def winner_preference(set_code: str, split_ids: set[str],
-                      trophy_arr: DeckArrays,
-                      trophy_builds: list[dict]) -> tuple[float, int]:
+                      trophy_arr: DeckArrays, trophy_builds: list[dict],
+                      source: str = "draft") -> tuple[float, int]:
     """Owner metric 2026-07-30: for drafts with a ≥5-win build AND a
     strictly-worse other build of the SAME pool, fraction where the model's
     deck is strictly closer (full-deck F1) to the build that won. Ties = 0.5.
     Deterministic — no learned judge, no simulated games."""
-    df = pd.read_parquet(PROCESSED_DIR / set_code / "decks.parquet")
+    df = pd.read_parquet(deck_parquet_path(set_code, source))
     df = df[df["draft_id"].isin(split_ids)]
     multi = df[df.duplicated("draft_id", keep=False)]
     a = winningest(multi)
@@ -348,21 +352,21 @@ def winner_preference(set_code: str, split_ids: set[str],
 # --------------------------------------------------------------------- CLI ---
 def evaluate_deck(builder_name: str, set_code: str, split: str, stats: str,
                   scheme: str = "random", out_dir: Path | None = None,
-                  decode: str | None = None) -> dict:
-    splits = load_splits(set_code)
+                  decode: str | None = None, source: str = "draft") -> dict:
+    splits = load_splits(set_code, source)
     split_ids = set(splits[scheme][split])
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     static = pd.read_parquet(PROCESSED_DIR / set_code / "features.static.parquet")
 
     if builder_name == "rebuild-ceiling":
         main_arr, main_builds, trophy_arr, trophy_builds = \
-            rebuild_ceiling_views(set_code, split_ids)
+            rebuild_ceiling_views(set_code, split_ids, source)
         name = "rebuild-ceiling"
     else:
         main_arr = load_deck_arrays(set_code, draft_ids=split_ids,
-                                    view="most_played")
+                                    view="most_played", source=source)
         win_arr = load_deck_arrays(set_code, draft_ids=split_ids,
-                                   view="winningest")
+                                   view="winningest", source=source)
         trophy_arr = win_arr.take(win_arr.meta["n_wins"].to_numpy() >= 5)
         if builder_name in DECK_BASELINES:
             from draftbot.data.features import load_snapshot
@@ -388,17 +392,18 @@ def evaluate_deck(builder_name: str, set_code: str, split: str, stats: str,
         pref, n_pairs = float("nan"), 0  # the "prediction" IS the lesser build
     else:
         pref, n_pairs = winner_preference(set_code, split_ids, trophy_arr,
-                                          trophy_builds)
+                                          trophy_builds, source)
     card = compute_deck_scorecard(
         main_arr, main_builds, trophy_arr, trophy_builds, cards,
         {"model": name, "set": set_code, "split": split,
-         "stats": stats, "scheme": scheme, "task": "deck",
+         "stats": stats, "scheme": scheme, "task": "deck", "event": source,
          "trophy_view": "winningest-build v2 (owner refinement 2026-07-30)"})
     card["metrics"]["winner_pref"] = pref
     card["n_winner_pairs"] = n_pairs
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
-        stem = f"deck.{name}.{set_code}.{split}.{stats}"
+        tag = "" if source == "draft" else f".{source}"
+        stem = f"deck.{name}.{set_code}{tag}.{split}.{stats}"
         (out_dir / f"{stem}.json").write_text(json.dumps(card, indent=1))
         (out_dir / f"{stem}.md").write_text(render_deck_markdown(card) + "\n")
     return card

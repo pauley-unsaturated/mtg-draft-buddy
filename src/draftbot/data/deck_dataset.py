@@ -21,6 +21,14 @@ from draftbot.data.cards import PROCESSED_DIR
 from draftbot.data.dataset import PAD
 
 
+def deck_parquet_path(set_code: str, source: str = "draft"):
+    """source: 'draft' (PremierDraft decks) | 'sealed' (Sealed ∪ TradSealed)."""
+    if source not in ("draft", "sealed"):
+        raise ValueError(f"unknown deck source {source!r}")
+    name = "decks.parquet" if source == "draft" else "decks.sealed.parquet"
+    return PROCESSED_DIR / set_code / name
+
+
 @dataclass
 class DeckArrays:
     pool_ids: np.ndarray
@@ -66,10 +74,10 @@ def winningest(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_deck_arrays(set_code: str, draft_ids: set[str] | None = None,
-                     view: str = "all") -> DeckArrays:
+                     view: str = "all", source: str = "draft") -> DeckArrays:
     """view: 'all' builds (training) | 'most_played' (typical-play eval) |
     'winningest' (trophy eval)."""
-    df = pd.read_parquet(PROCESSED_DIR / set_code / "decks.parquet")
+    df = pd.read_parquet(deck_parquet_path(set_code, source))
     if draft_ids is not None:
         df = df[df["draft_id"].isin(draft_ids)]
     if view == "most_played":

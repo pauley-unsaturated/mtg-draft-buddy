@@ -80,8 +80,34 @@ def build_splits(set_code: str, event: str = "PremierDraft") -> dict:
     return splits
 
 
-def load_splits(set_code: str) -> dict:
-    return json.loads((SPLITS_DIR / f"{set_code}.json").read_text())
+def build_sealed_splits(set_code: str) -> dict:
+    """Sealed draft_ids are a separate universe from draft draft_ids, so sealed
+    decks get their own split file (same sha1 bucketing, persisted once)."""
+    out_path = SPLITS_DIR / f"{set_code}.sealed.json"
+    if out_path.exists():
+        return json.loads(out_path.read_text())
+
+    from draftbot.data.deck_dataset import deck_parquet_path
+    df = pd.read_parquet(deck_parquet_path(set_code, "sealed"),
+                         columns=["draft_id"])
+    ids = df["draft_id"].unique().tolist()
+    buckets = {i: _bucket(i) for i in ids}
+    splits = {
+        "set": set_code, "event": "sealed", "method": "sha1(draft_id) mod 100",
+        "random": {
+            "train": [i for i in ids if buckets[i] < 90],
+            "val": [i for i in ids if 90 <= buckets[i] < 95],
+            "test": [i for i in ids if buckets[i] >= 95],
+        },
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(splits))
+    return splits
+
+
+def load_splits(set_code: str, source: str = "draft") -> dict:
+    suffix = ".json" if source == "draft" else f".{source}.json"
+    return json.loads((SPLITS_DIR / f"{set_code}{suffix}").read_text())
 
 
 def split_picks(picks: pd.DataFrame, splits: dict, part: str,

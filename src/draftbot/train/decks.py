@@ -117,13 +117,17 @@ class DeckTrainer:
         torch.manual_seed(cfg.get("seed", 17))
         self.device = device_auto()
         set_code = cfg["set"]
-        splits = load_splits(set_code)
+        source = cfg.get("source", "draft")  # 'sealed' → sealed decks + splits
+        splits = load_splits(set_code, source)
 
         self.train_arr = load_deck_arrays(set_code,
-                                          set(splits["random"]["train"]))
+                                          set(splits["random"]["train"]),
+                                          source=source)
         val_ids = set(splits["random"]["val"])
-        self.val_arr = load_deck_arrays(set_code, val_ids, view="most_played")
-        win = load_deck_arrays(set_code, val_ids, view="winningest")
+        self.val_arr = load_deck_arrays(set_code, val_ids, view="most_played",
+                                        source=source)
+        win = load_deck_arrays(set_code, val_ids, view="winningest",
+                               source=source)
         self.val_trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
         cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
         self.cards = cards
@@ -365,10 +369,12 @@ class DeckCorpusTrainer:
         scaler = fit_corpus_scaler(codes)
         save_scaler(scaler, self.dir / "scaler.json")
 
+        source = cfg.get("source", manifest.get("source", "draft"))
         self.bundles = []
         for code in codes:
-            splits = load_splits(code)
-            arr = load_deck_arrays(code, set(splits["random"]["train"]))
+            splits = load_splits(code, source)
+            arr = load_deck_arrays(code, set(splits["random"]["train"]),
+                                   source=source)
             cards = pd.read_parquet(PROCESSED_DIR / code / "cards.parquet")
             is_land = land_flags(cards)
             if cfg.get("weighting", "uniform") == "win_skill":
@@ -388,9 +394,9 @@ class DeckCorpusTrainer:
         proxy_sets = [c for c in self.PROXY_SETS if c in codes]
         assert len(proxy_sets) >= 2, "too few proxy sets left in corpus"
         for code in proxy_sets:
-            splits = load_splits(code)
+            splits = load_splits(code, source)
             win = load_deck_arrays(code, set(splits["random"]["val"]),
-                                   view="winningest")
+                                   view="winningest", source=source)
             trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
             b = next(x for x in self.bundles if x["code"] == code)
             self.val_proxies.append((code, trophy, b["is_land"], b["f_full"]))
