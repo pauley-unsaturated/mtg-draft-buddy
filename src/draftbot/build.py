@@ -128,6 +128,9 @@ def main(argv=None):
                    choices=["none", "week1", "full"])
     p.add_argument("--decode", default=None,
                    choices=["greedy", "expected", "maskgit", "rescore"])
+    p.add_argument("--format", dest="fmt", default="sealed",
+                   choices=["draft", "sealed"],
+                   help="format token for joint-trained models (default sealed)")
     args = p.parse_args(argv)
 
     text = sys.stdin.read() if args.pool == "-" else Path(args.pool).read_text()
@@ -137,6 +140,8 @@ def main(argv=None):
     from draftbot.models.loading import deck_builder_from_checkpoint
     builder = deck_builder_from_checkpoint(Path(args.ckpt), args.set_code,
                                            args.stats)
+    if getattr(builder.model, "formats", False):
+        builder.format_id = 1 if args.fmt == "sealed" else 0
     if args.decode:
         builder.decode = args.decode
     build = builder.build_all(arr)[0]

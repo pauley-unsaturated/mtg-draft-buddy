@@ -381,6 +381,8 @@ def evaluate_deck(builder_name: str, set_code: str, split: str, stats: str,
                 raise SystemExit(f"unknown deck model {builder_name!r}")
             from draftbot.models.loading import deck_builder_from_checkpoint
             builder = deck_builder_from_checkpoint(ckpt, set_code, stats)
+            if getattr(builder.model, "formats", False):
+                builder.format_id = 1 if source == "sealed" else 0
             if decode and decode != builder.decode:
                 builder.decode = decode
                 builder.name = f"{builder.name}+{decode}"

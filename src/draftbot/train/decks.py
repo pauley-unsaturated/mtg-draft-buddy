@@ -39,7 +39,8 @@ def build_deck_model(cfg: dict, card_features: torch.Tensor) -> DeckBuilder:
                        heads=cfg.get("heads", 8), blocks=cfg.get("blocks", 3),
                        dropout=cfg.get("dropout", 0.1),
                        diffusion=cfg.get("model", "builder") == "diffusion",
-                       quality_basics=cfg.get("quality_basics", False))
+                       quality_basics=cfg.get("quality_basics", False),
+                       formats=cfg.get("formats", False))
 
 
 def deck_targets(arr, is_land: np.ndarray):
@@ -59,7 +60,7 @@ def deck_targets(arr, is_land: np.ndarray):
 
 
 def deck_loss(model, arr, targets, weights: np.ndarray, b: np.ndarray,
-              device, cfg: dict) -> torch.Tensor:
+              device, cfg: dict, format_id: int = 0) -> torch.Tensor:
     """The full training objective for a batch of build indices `b`.
     Diffusion models: reveal a random fraction of true deck counts as
     conditioning and take the membership loss on the MASKED slots only."""
@@ -81,14 +82,15 @@ def deck_loss(model, arr, targets, weights: np.ndarray, b: np.ndarray,
         state = torch.where(reveal & (ids >= 0),
                             deck_cnt.clamp(0, MASK_STATE - 1),
                             torch.full_like(ids, MASK_STATE))
-        member, land, basics = model(ids, cnt, ids == -1, state)
+        member, land, basics = model(ids, cnt, ids == -1, state,
+                                     format_id=format_id)
         # hidden slots carry the objective; revealed ones optionally kept at a
         # low weight so masking doesn't halve the supervision per step
         rw = cfg.get("reveal_weight", 0.0)
         slot_w = slot_w * torch.where(reveal, torch.full_like(slot_w, rw),
                                       torch.ones_like(slot_w))
     else:
-        member, land, basics = model(ids, cnt, ids == -1)
+        member, land, basics = model(ids, cnt, ids == -1, format_id=format_id)
     target = torch.from_numpy(frac[b]).to(device)
     bce = torch.nn.functional.binary_cross_entropy_with_logits(
         member.clamp(min=-30), target, reduction="none")  # pads sit at -1e9
@@ -118,6 +120,7 @@ class DeckTrainer:
         self.device = device_auto()
         set_code = cfg["set"]
         source = cfg.get("source", "draft")  # 'sealed' → sealed decks + splits
+        self.format_id = 1 if source == "sealed" else 0  # formats models only
         splits = load_splits(set_code, source)
 
         self.train_arr = load_deck_arrays(set_code,
@@ -220,7 +223,8 @@ class DeckTrainer:
 
     def _loss(self, b: np.ndarray) -> torch.Tensor:
         loss = deck_loss(self.model, self.train_arr, self.targets,
-                         self.weights, b, self.device, self.cfg)
+                         self.weights, b, self.device, self.cfg,
+                         format_id=self.format_id)
         if self.pairs is not None:
             loss = loss + self.cfg["quality_lambda"] * self._quality_loss()
         return loss
@@ -240,7 +244,8 @@ class DeckTrainer:
             .masked_fill(ids == -1, MASK_STATE)
         bas = torch.from_numpy(arr.basics[rows].astype(np.float32) / 20.0) \
             .to(self.device)
-        q = self.model.quality(ids, cnt, ids == -1, state, bas)
+        q = self.model.quality(ids, cnt, ids == -1, state, bas,
+                               format_id=self.format_id)
         margin = self.cfg.get("quality_margin", 0.2)
         return torch.relu(margin - (q[:k] - q[k:])).mean()
 
@@ -251,7 +256,8 @@ class DeckTrainer:
         builder = TorchDeckBuilder(self.model, self.exp, self.device,
                                    self.is_land,
                                    decode=self.cfg.get("decode", "greedy"),
-                                   steps=self.cfg.get("steps", 8))
+                                   steps=self.cfg.get("steps", 8),
+                                   format_id=self.format_id)
 
         def mean_f1(arr):
             builds = builder.build_all(arr)
@@ -362,48 +368,75 @@ class DeckCorpusTrainer:
         torch.manual_seed(cfg.get("seed", 17))
         self.device = device_auto()
 
-        manifest = yaml.safe_load(Path(cfg["corpus"]).read_text())
-        codes = list(manifest["sets"])
-        banned = set(manifest.get("quarantine", [])) | set(manifest.get("holdout", []))
-        assert not (banned & set(codes)), f"banned sets in corpus: {banned & set(codes)}"
+        # Single manifest (cfg `corpus`) or joint multi-format training
+        # (cfg `corpora: [{manifest: ..., boost: 4.0}, ...]`, P5.S joint
+        # program): each manifest carries its own `source`; `boost` scales the
+        # sampling weight of that corpus (sealed is 1/11 of draft naturally).
+        specs = cfg.get("corpora") or [{"manifest": cfg["corpus"]}]
+        manifests, all_codes = [], set()
+        for spec in specs:
+            manifest = yaml.safe_load(Path(spec["manifest"]).read_text())
+            codes = list(manifest["sets"])
+            banned = set(manifest.get("quarantine", [])) \
+                | set(manifest.get("holdout", []))
+            assert not (banned & set(codes)), \
+                f"banned sets in corpus: {banned & set(codes)}"
+            manifests.append((manifest, float(spec.get("boost", 1.0))))
+            all_codes |= set(codes)
         if cfg.get("scaler_from"):  # warm-start: features scaled as the source saw them
             from draftbot.data.features import load_scaler
             scaler = load_scaler(Path(cfg["scaler_from"]) / "scaler.json")
         else:
-            scaler = fit_corpus_scaler(codes)
+            scaler = fit_corpus_scaler(sorted(all_codes))
         save_scaler(scaler, self.dir / "scaler.json")
 
-        source = cfg.get("source", manifest.get("source", "draft"))
         self.bundles = []
-        for code in codes:
-            splits = load_splits(code, source)
-            arr = load_deck_arrays(code, set(splits["random"]["train"]),
-                                   source=source)
-            cards = pd.read_parquet(PROCESSED_DIR / code / "cards.parquet")
-            is_land = land_flags(cards)
-            if cfg.get("weighting", "uniform") == "win_skill":
-                w = example_weights(arr.meta)
-            else:
-                w = np.ones(arr.n_builds, dtype=np.float32)
-            f_full, f_none = _deck_feature_pair(code, scaler)
-            self.bundles.append({
-                "code": code, "arr": arr, "targets": deck_targets(arr, is_land),
-                "weights": w, "is_land": is_land,
-                "f_full": f_full.to(self.device), "f_none": f_none.to(self.device),
-                "sample_w": manifest["sets"][code].get("weight", 1.0) * arr.n_builds,
-            })
-            print(f"loaded {code}: {arr.n_builds} builds", flush=True)
+        feat_cache, land_cache = {}, {}
+        for manifest, boost in manifests:
+            source = cfg.get("source") or manifest.get("source", "draft")
+            fmt = 1 if source == "sealed" else 0
+            for code in manifest["sets"]:
+                splits = load_splits(code, source)
+                arr = load_deck_arrays(code, set(splits["random"]["train"]),
+                                       source=source)
+                if code not in feat_cache:
+                    cards = pd.read_parquet(PROCESSED_DIR / code / "cards.parquet")
+                    land_cache[code] = land_flags(cards)
+                    ff, fn = _deck_feature_pair(code, scaler)
+                    feat_cache[code] = (ff.to(self.device), fn.to(self.device))
+                f_full, f_none = feat_cache[code]
+                is_land = land_cache[code]
+                if cfg.get("weighting", "uniform") == "win_skill":
+                    w = example_weights(arr.meta)
+                else:
+                    w = np.ones(arr.n_builds, dtype=np.float32)
+                self.bundles.append({
+                    "code": code, "source": source, "format_id": fmt,
+                    "arr": arr, "targets": deck_targets(arr, is_land),
+                    "weights": w, "is_land": is_land,
+                    "f_full": f_full, "f_none": f_none,
+                    "sample_w": (manifest["sets"][code].get("weight", 1.0)
+                                 * arr.n_builds * boost),
+                })
+                print(f"loaded {code}/{source}: {arr.n_builds} builds",
+                      flush=True)
 
         self.val_proxies = []
-        proxy_sets = [c for c in self.PROXY_SETS if c in codes]
-        assert len(proxy_sets) >= 2, "too few proxy sets left in corpus"
-        for code in proxy_sets:
-            splits = load_splits(code, source)
-            win = load_deck_arrays(code, set(splits["random"]["val"]),
-                                   view="winningest", source=source)
-            trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
-            b = next(x for x in self.bundles if x["code"] == code)
-            self.val_proxies.append((code, trophy, b["is_land"], b["f_full"]))
+        for manifest, _ in manifests:
+            source = cfg.get("source") or manifest.get("source", "draft")
+            proxy_sets = [c for c in self.PROXY_SETS if c in manifest["sets"]]
+            assert len(proxy_sets) >= 2, "too few proxy sets left in corpus"
+            for code in proxy_sets:
+                splits = load_splits(code, source)
+                win = load_deck_arrays(code, set(splits["random"]["val"]),
+                                       view="winningest", source=source)
+                trophy = win.take(win.meta["n_wins"].to_numpy() >= 5)
+                b = next(x for x in self.bundles
+                         if x["code"] == code and x["source"] == source)
+                self.val_proxies.append((f"{code}/{source}", trophy,
+                                         b["is_land"], b["f_full"],
+                                         b["format_id"]))
+        self.val_detail = ""
 
         self.model = build_deck_model(cfg, self.bundles[0]["f_full"]).to(self.device)
         if cfg.get("init_from"):  # warm-start (e.g. sealed corpus from the draft trunk)
@@ -438,17 +471,23 @@ class DeckCorpusTrainer:
 
     def val_f1(self) -> float:
         from draftbot.eval.decks import _f1, _true_build, _with_basics
-        scores = []
-        for code, arr, is_land, feats in self.val_proxies:
+        scores, by_fmt = [], {}
+        for label, arr, is_land, feats, fmt in self.val_proxies:
             self.model.card_features = feats
             builder = TorchDeckBuilder(self.model, self.exp, self.device, is_land,
-                                       decode=self.cfg.get("decode", "greedy"))
+                                       decode=self.cfg.get("decode", "greedy"),
+                                       format_id=fmt)
             builds = builder.build_all(arr)
-            scores.append(np.mean([
+            s = np.mean([
                 _f1(_with_basics(p["deck"], p["basics"]),
                     _with_basics(*_true_build(arr, i)))
-                for i, p in enumerate(builds)]))
+                for i, p in enumerate(builds)])
+            scores.append(s)
+            by_fmt.setdefault(label.split("/")[1], []).append(s)
         self.model.train()
+        if len(by_fmt) > 1:
+            self.val_detail = " ".join(f"{k} {np.mean(v):.4f}"
+                                       for k, v in sorted(by_fmt.items()))
         return float(np.mean(scores))
 
     def train(self) -> float:
@@ -478,7 +517,8 @@ class DeckCorpusTrainer:
                     b["f_none"] if np.random.random() < p_statless else b["f_full"])
                 self.optim.zero_grad(set_to_none=True)
                 loss = deck_loss(self.model, b["arr"], b["targets"], b["weights"],
-                                 idx, self.device, cfg)
+                                 idx, self.device, cfg,
+                                 format_id=b.get("format_id", 0))
                 loss.backward()
                 if clip:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip)
@@ -492,8 +532,9 @@ class DeckCorpusTrainer:
             val = self.val_f1()
             self.writer.add_scalar("val/proxy_trophy_f1", val, self.step)
             mins = (time.time() - start) / 60
+            detail = f" [{self.val_detail}]" if self.val_detail else ""
             print(f"epoch {self.epoch}/{epochs} loss {epoch_loss/max(n_batches,1):.4f} "
-                  f"proxy_trophy {val:.4f} ({mins:.1f} min)", flush=True)
+                  f"proxy_trophy {val:.4f}{detail} ({mins:.1f} min)", flush=True)
             improved = val > self.best_val
             if improved:
                 self.best_val = val
@@ -519,7 +560,8 @@ def main(argv=None):
     ckpt_dir = CKPT_ROOT / cfg["exp"]
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(args.config, ckpt_dir / "config.yaml")
-    trainer_cls = DeckCorpusTrainer if cfg.get("corpus") else DeckTrainer
+    trainer_cls = (DeckCorpusTrainer if cfg.get("corpus") or cfg.get("corpora")
+                   else DeckTrainer)
     best = trainer_cls(cfg, resume=args.resume).train()
     print(f"best val trophy-F1: {best:.4f}")
     return 0
