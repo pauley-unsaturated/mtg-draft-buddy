@@ -904,3 +904,11 @@ parser → state (80 nonbasics after dropping 4 pool basics) → legal 40 →
 lock-respect. Replay renders the same build the CLI produced for the same
 pool — WU Katara/Fortune-Teller with a 2-Mountain/1-Forest splash off North
 Pole Gates.
+
+## 2026-08-01 — Production wart (filed, not fixed): hybrid pips inflate basics
+
+Live TLA sealed build: the basics head proposed 6P/7I/2M/1F for a deck whose
+every spell casts off WU — Suki ({G/W}{G/W}) and Messenger Hawk ({U/B})
+contribute phantom G/B pip mass to the static features, and the pip-aware
+basics allocation obliges. Owner registered 8P/8I (correct). Fix candidates
+when worth it: hybrid-aware pip features, or a castability check in decode.
