@@ -300,18 +300,34 @@ def apply_scaler(df: pd.DataFrame, scaler: dict, add_masks: bool) -> pd.DataFram
     return pd.DataFrame(out, index=df.index)
 
 
+def zero_text_block(feats: pd.DataFrame) -> pd.DataFrame:
+    """`text_when: statless` policy at inference: with stats present the text
+    block is switched off (z-scored zero = the corpus mean), so the model runs
+    the plain static+stats pathway it trained on for that condition."""
+    cols = [c for c in feats.columns if c.startswith("text_")]
+    if cols:
+        feats = feats.copy()
+        feats[cols] = np.float32(0.0)
+    return feats
+
+
 def assemble(set_code: str, stats: str | None, scaler: dict | None = None,
-             fit: bool = False) -> tuple[pd.DataFrame, dict]:
-    """Full feature table for a set: static ∥ (stat snapshot ∥ masks).
+             fit: bool = False, text: str | None = None) -> tuple[pd.DataFrame, dict]:
+    """Full feature table for a set: static ∥ [text] ∥ (stat snapshot ∥ masks).
 
     stats: None → static only, masks all-on for the stat block is handled by the
     caller keeping dims fixed (Phase 3); for single-set work None simply means
-    no stat columns. Returns (features, scaler).
+    no stat columns. text: encoder name → the frozen oracle-text embedding
+    block (P3.T5c; never masked — text never goes missing). Returns
+    (features, scaler).
     """
     static_path = PROCESSED_DIR / set_code / "features.static.parquet"
     static = pd.read_parquet(static_path) if static_path.exists() \
         else build_static_features(set_code)
     parts = [("static", static, False)]
+    if text:
+        from draftbot.data.text_features import load_text_features
+        parts.append(("text", load_text_features(set_code, text), False))
     if stats:
         parts.append(("stats", load_snapshot(set_code, stats), True))
     if fit:

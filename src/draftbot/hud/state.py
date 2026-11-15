@@ -14,11 +14,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from draftbot.data.cards import (COMPANION_SHEETS, PROCESSED_DIR,
-                                 SCRYFALL_CACHE_DIR, name_to_id, norm_name)
+from draftbot.data.cards import (PROCESSED_DIR, SCRYFALL_CACHE_DIR, name_to_id,
+                                 norm_name, source_sets)
 from draftbot.data.dataset import PAD
 from draftbot.hud.follower import (DraftCompleted, DraftJoined, PackSeen,
-                                   PickMade, set_code_from_event)
+                                   PickMade, SealedPool, set_code_from_event)
 
 
 _GLOBAL_GRP_INDEX: dict[int, str] | None = None
@@ -54,11 +54,20 @@ def infer_set(card_ids: list[int]) -> str | None:
 
 
 def grp_to_vocab(set_code: str) -> dict[int, int]:
-    """arena grpId → our card id, via the cached Scryfall set JSONs."""
+    """arena grpId → our card id, via the cached Scryfall set JSONs, with
+    Arena's own card database as the backstop.
+
+    Scryfall is authoritative where it has an `arena_id`, but it backfills
+    those days after a set goes live — on release day every card in the set
+    has `arena_id: null` (observed for all 193 HOB + 103 HOC cards on
+    2026-08-11), which would leave the HUD unable to read a single pack. The
+    Arena client's local database always knows the grpIds it is about to
+    write into Player.log, so it fills the gaps here (and, incidentally, the
+    alternate printings Scryfall's `unique=cards` search collapses away)."""
     cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
     nti = name_to_id(cards)
     mapping: dict[int, int] = {}
-    sources = [set_code] + COMPANION_SHEETS.get(set_code.upper(), [])
+    sources = source_sets(set_code)
     for code in sources:
         cache = SCRYFALL_CACHE_DIR / f"{code.lower()}.json"
         if not cache.exists():
@@ -74,7 +83,29 @@ def grp_to_vocab(set_code: str) -> dict[int, int]:
         vid = nti.get(norm_name(card.get("name", "")))
         if arena and vid is not None:
             mapping.setdefault(int(arena), vid)
+    mapping.update(_arena_db_grps(sources, nti, mapping))
     return mapping
+
+
+def _arena_db_grps(sources: list[str], nti: dict[str, int],
+                   known: dict[int, int]) -> dict[int, int]:
+    """grpIds Scryfall could not supply, read from the local Arena client.
+
+    Absent/unreadable is normal (CI, a machine without Arena) — the Scryfall
+    mapping stands alone there, which is every set past its first week."""
+    import sqlite3
+
+    from draftbot.data import arena_db
+    try:
+        names = arena_db.grp_names(sources)
+    except (FileNotFoundError, sqlite3.Error, OSError):
+        return {}
+    extra = {}
+    for grp, name in names.items():
+        vid = nti.get(norm_name(name))
+        if vid is not None and grp not in known:
+            extra[int(grp)] = vid
+    return extra
 
 
 @dataclass
@@ -197,3 +228,50 @@ class DraftState:
 
     def pool_ids(self) -> list[int]:
         return list(self.picks)
+
+
+_BASIC_IDS: dict[str, set[int]] = {}
+
+
+def _basic_ids(set_code: str) -> set[int]:
+    if set_code not in _BASIC_IDS:
+        cards = pd.read_parquet(PROCESSED_DIR / set_code / "cards.parquet")
+        _BASIC_IDS[set_code] = set(cards.loc[cards["is_basic"] == 1, "id"])
+    return _BASIC_IDS[set_code]
+
+
+@dataclass
+class SealedState:
+    """Sealed pool from the course messages (P5.S4). No picks to track — the
+    pool arrives whole; basics are dropped per the pool-identity rule (the
+    basics head owns the manabase). grp→vocab mapping reuses DraftState's
+    resolver, including the /cards/arena variant-printing fallback."""
+
+    set_code: str | None = None
+    event_name: str | None = None
+    course_id: str | None = None
+    pool: list[int] = field(default_factory=list)   # vocab ids, nonbasics
+    unknown_grps: set[int] = field(default_factory=set)
+    _mapper: DraftState | None = None
+
+    def apply(self, ev) -> bool:
+        """Consume one event; True if the pool changed."""
+        if not isinstance(ev, SealedPool):
+            return False
+        if ev.course_id and ev.course_id == self.course_id and self.pool:
+            return False   # course re-announced (relaunch, module change)
+        code = set_code_from_event(ev.event_name) or infer_set(ev.card_ids)
+        if code is None:
+            return False
+        if self._mapper is None or code != self.set_code:
+            self.set_code = code
+            self._mapper = DraftState(set_code=code, _grp_map=grp_to_vocab(code))
+        vids = self._mapper._map(ev.card_ids)
+        self.unknown_grps |= self._mapper.unknown_grps
+        basics = _basic_ids(code)
+        pool = [v for v in vids if v not in basics]
+        if not pool:
+            return False
+        self.pool = pool
+        self.event_name, self.course_id = ev.event_name, ev.course_id
+        return True

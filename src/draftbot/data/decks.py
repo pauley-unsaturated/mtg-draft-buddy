@@ -11,6 +11,7 @@ incident).
 import argparse
 import sys
 import tarfile
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -58,20 +59,27 @@ def _sparse(mat: np.ndarray, vids: np.ndarray) -> tuple[list, list]:
     return ids, counts
 
 
-def extract(set_code: str, event: str = "PremierDraft") -> Path:
-    cards = build_cards(set_code, event)
+def _col_vids(cols: list[str], prefix: str, nti: dict,
+              label: str) -> np.ndarray:
+    names = [norm_name(c[len(prefix):]) for c in cols]
+    missing = sorted({n for n in names if n not in nti})
+    if missing:
+        raise KeyError(f"{label}: {len(missing)} {prefix}column names not in "
+                       f"cards.parquet vocab, e.g. {missing[:10]}")
+    return np.array([nti[n] for n in names], dtype=np.int16)
+
+
+def _event_table(set_code: str, event: str, cards: pd.DataFrame) -> pa.Table:
     nti = name_to_id(cards)
     basic_vids = {nti[b] for b in BASIC_ORDER if b in nti}
     csv_path = dest_path(set_code, event, kind="game")
-    out_path = PROCESSED_DIR / set_code / "decks.parquet"
 
     header = pd.read_csv(_open_game_csv(csv_path), nrows=0).columns
     deck_cols = [c for c in header if c.startswith("deck_")]
     side_cols = [c for c in header if c.startswith("sideboard_")]
-    deck_vids = np.array([nti[norm_name(c[len("deck_"):])] for c in deck_cols],
-                         dtype=np.int16)
-    side_vids = np.array([nti[norm_name(c[len("sideboard_"):])] for c in side_cols],
-                         dtype=np.int16)
+    label = f"{set_code} {event}"
+    deck_vids = _col_vids(deck_cols, "deck_", nti, label)
+    side_vids = _col_vids(side_cols, "sideboard_", nti, label)
 
     # older game files name the WR bucket differently (AFR era)
     wr_col = next((c for c in ("user_game_win_rate_bucket",
@@ -105,7 +113,7 @@ def extract(set_code: str, event: str = "PremierDraft") -> Path:
     deck_ids, deck_counts = _sparse(deck_mat[:, deck_nb], deck_vids[deck_nb])
     side_ids, side_counts = _sparse(side_mat[:, side_nb], side_vids[side_nb])
 
-    table = pa.Table.from_pydict({
+    return pa.Table.from_pydict({
         "draft_id": [d for d, _ in stats.index],
         "build_index": [b for _, b in stats.index],
         "deck_ids": deck_ids, "deck_counts": deck_counts,
@@ -115,16 +123,76 @@ def extract(set_code: str, event: str = "PremierDraft") -> Path:
         "n_wins": stats["n_wins"].tolist(),
         "user_win_rate": stats["user_win_rate"].astype("float32").tolist(),
     }, schema=SCHEMA)
+
+
+def _sealed_clean(df: pd.DataFrame, set_code: str) -> pd.DataFrame:
+    """Sealed-only curation (gate findings 2026-07-31). Two real-data tails the
+    draft gate never saw: ~1-2% of sealed builds are 44-91-card piles (players
+    submitting unbuilt pools) and ~1% of multi-build entries disagree on their
+    own pool by ±1 card (17lands quirk). Both are dropped — oversized piles
+    are junk eval targets, and same-pool rebuilds are load-bearing for the
+    rebuild ceiling and winner-pref. Drop rates are logged, never silent."""
+    n0 = len(df)
+    total = (df["deck_counts"].apply(lambda c: int(np.sum(c)))
+             + df["basics"].apply(lambda b: int(np.sum(b))))
+    df = df[total.between(40, 43)]
+
+    def pool_sig(r):
+        c = Counter({int(i): int(n) for i, n in
+                     zip(r["deck_ids"], r["deck_counts"])})
+        c.update({int(i): int(n) for i, n in
+                  zip(r["side_ids"], r["side_counts"])})
+        return tuple(sorted(c.items()))
+
+    multi = df[df.duplicated("draft_id", keep=False)]
+    if len(multi):
+        sigs = multi.apply(pool_sig, axis=1)
+        n_sigs = sigs.groupby(multi["draft_id"]).nunique()
+        bad = set(n_sigs[n_sigs > 1].index)
+        df = df[~df["draft_id"].isin(bad)]
+    else:
+        bad = set()
+    print(f"{set_code} sealed clean: dropped {n0 - len(df)}/{n0} builds "
+          f"({(total.between(40, 43) == False).sum()} sized outside 40-43, "
+          f"{len(bad)} pool-inconsistent entries)")
+    return df
+
+
+def extract(set_code: str, event: str = "PremierDraft") -> Path:
+    """event='PremierDraft' → decks.parquet; event='sealed' → merge the Sealed
+    and TradSealed game files (whichever are downloaded) into
+    decks.sealed.parquet. The vocab is always the DRAFT card universe — sealed
+    boosters are the same play boosters, and any name that fails to resolve is
+    a loud error, not a dropped column."""
+    cards = build_cards(set_code)
+    if event.lower() == "sealed":
+        events = [e for e in ("Sealed", "TradSealed")
+                  if dest_path(set_code, e, kind="game").exists()]
+        if not events:
+            raise SystemExit(f"{set_code}: no Sealed/TradSealed game files in "
+                             "data/raw — download them first")
+        table = pa.concat_tables([_event_table(set_code, e, cards)
+                                  for e in events])
+        df = _sealed_clean(table.to_pandas(), set_code)
+        table = pa.Table.from_pandas(df, schema=SCHEMA, preserve_index=False)
+        out_path = PROCESSED_DIR / set_code / "decks.sealed.parquet"
+        label = "+".join(events)
+    else:
+        table = _event_table(set_code, event, cards)
+        out_path = PROCESSED_DIR / set_code / "decks.parquet"
+        label = event
     pq.write_table(table, out_path, compression="zstd")
-    print(f"{set_code}: {len(stats)} deck builds -> {out_path}")
+    print(f"{set_code} {label}: {table.num_rows} deck builds -> {out_path}")
     return out_path
 
 
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--set", dest="set_code", required=True)
+    p.add_argument("--event", default="PremierDraft",
+                   help="PremierDraft (default) or 'sealed' (Sealed+TradSealed)")
     args = p.parse_args(argv)
-    extract(args.set_code)
+    extract(args.set_code, args.event)
     return 0
 
 

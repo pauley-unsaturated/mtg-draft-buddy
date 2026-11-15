@@ -33,13 +33,19 @@ class DeckBuilder(nn.Module):
 
     def __init__(self, card_features: torch.Tensor, emb_dim: int = 128,
                  heads: int = 8, blocks: int = 3, dropout: float = 0.1,
-                 diffusion: bool = False, quality_basics: bool = False):
+                 diffusion: bool = False, quality_basics: bool = False,
+                 formats: bool = False):
         super().__init__()
         self.register_buffer("card_features", card_features)  # (n_cards, F)
         f = card_features.shape[1]
         self.encoder = nn.Sequential(
             nn.Linear(f, emb_dim * 2), nn.SiLU(), nn.Linear(emb_dim * 2, emb_dim))
         self.count_emb = nn.Embedding(8, emb_dim)  # copies of this card in pool
+        self.formats = formats
+        if formats:  # joint draft+sealed training (P5.S): 0=draft, 1=sealed.
+            # Zero-init so a warm-started model is format-blind until trained.
+            self.format_emb = nn.Embedding(2, emb_dim)
+            nn.init.zeros_(self.format_emb.weight)
         self.blocks = nn.ModuleList(
             [SetAttentionBlock(emb_dim, heads, dropout) for _ in range(blocks)])
         self.pma = PMA(emb_dim, heads)
@@ -57,9 +63,12 @@ class DeckBuilder(nn.Module):
             self.quality_head = nn.Sequential(
                 nn.Linear(q_in, emb_dim), nn.SiLU(), nn.Linear(emb_dim, 1))
 
-    def _trunk(self, pool_ids, pool_counts, pad_mask, deck_state=None):
+    def _trunk(self, pool_ids, pool_counts, pad_mask, deck_state=None,
+               format_id: int = 0):
         x = self.encoder(self.card_features[pool_ids.clamp(min=0)])
         x = x + self.count_emb(pool_counts.clamp(min=0, max=7))
+        if self.formats:
+            x = x + self.format_emb.weight[format_id]
         if self.diffusion:
             if deck_state is None:
                 deck_state = torch.full_like(pool_ids, MASK_STATE)
@@ -70,21 +79,25 @@ class DeckBuilder(nn.Module):
         return x, self.pma(x, pad_mask)
 
     def forward(self, pool_ids: torch.Tensor, pool_counts: torch.Tensor,
-                pad_mask: torch.Tensor, deck_state: torch.Tensor | None = None):
+                pad_mask: torch.Tensor, deck_state: torch.Tensor | None = None,
+                format_id: int = 0):
         """pool_ids (B,N) vocab ids, pool_counts (B,N) copies, pad_mask (B,N)
         True where padded, deck_state (B,N) revealed counts / MASK_STATE
-        (diffusion models only). Returns (member_logits (B,N),
+        (diffusion models only), format_id 0=draft 1=sealed (formats models
+        only; ignored otherwise). Returns (member_logits (B,N),
         land_logits (B,7), basics_logits (B,5))."""
-        x, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state)
+        x, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state,
+                                format_id)
         member = self.member_head(x)[..., 0].masked_fill(pad_mask, -1e9)
         return member, self.land_head(pooled), self.basics_head(pooled)
 
     def quality(self, pool_ids, pool_counts, pad_mask, deck_state,
-                basics: torch.Tensor | None = None):
+                basics: torch.Tensor | None = None, format_id: int = 0):
         """(B,) deck-quality score of a FULLY revealed build (win-aware aux).
         basics: (B,5) basic counts / 20 — required when quality_basics (the
         manabase is part of the deck being judged)."""
-        _, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state)
+        _, pooled = self._trunk(pool_ids, pool_counts, pad_mask, deck_state,
+                                format_id)
         if self.quality_basics:
             pooled = torch.cat([pooled, basics], -1)
         return self.quality_head(pooled)[..., 0]
@@ -104,7 +117,7 @@ class TorchDeckBuilder:
 
     def __init__(self, model: DeckBuilder, name: str, device,
                  is_land_flags: np.ndarray, batch: int = 512,
-                 decode: str = "greedy", steps: int = 8):
+                 decode: str = "greedy", steps: int = 8, format_id: int = 0):
         self.model = model.to(device).eval()
         self.name = name
         self.device = device
@@ -112,10 +125,12 @@ class TorchDeckBuilder:
         self.batch = batch
         self.decode = decode
         self.steps = steps
+        self.format_id = format_id  # 0=draft, 1=sealed (formats models only)
 
     @torch.no_grad()
     def _heads(self, ids, cnt, pad, state=None):
-        member, land, basics = self.model(ids, cnt, pad, state)
+        member, land, basics = self.model(ids, cnt, pad, state,
+                                          format_id=self.format_id)
         return (torch.sigmoid(member), torch.softmax(land, -1),
                 torch.softmax(basics, -1))
 
@@ -193,7 +208,8 @@ class TorchDeckBuilder:
                                               dtype=torch.float32)
                     state = state.clamp(0, MASK_STATE - 1).masked_fill(
                         pad, MASK_STATE)
-                    scores.append(self.model.quality(ids, cnt, pad, state, bas))
+                    scores.append(self.model.quality(ids, cnt, pad, state, bas,
+                                                     format_id=self.format_id))
                 best = torch.stack(scores).argmax(0).cpu().numpy()
                 out.extend(cands[int(best[j])][j] for j in range(ids.shape[0]))
             else:

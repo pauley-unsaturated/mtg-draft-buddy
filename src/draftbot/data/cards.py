@@ -36,9 +36,15 @@ COMPANION_SHEETS = {
     "TLA": ["SPG"], "ECL": ["SPG"],
 }
 
+# Written by draftbot.data.day0 next to a provisional (pre-17lands) vocab.
+DAY0_MARKER = ".day0"
+# Optional per-set override of the companion-sheet registry, written by day0
+# from Scryfall's parent_set_code graph so a new set needs no code edit.
+SOURCES_JSON = "sources.json"
+
 SCRYFALL_SEARCH = "https://api.scryfall.com/cards/search"
 SCRYFALL_NAMED = "https://api.scryfall.com/cards/named"
-HEADERS = {"User-Agent": "mtg-draft-buddy/0.1 (research; mpauley@icloud.com)", "Accept": "application/json"}
+HEADERS = {"User-Agent": "draft-research-client/0.1", "Accept": "application/json"}
 
 PROCESSED_DIR = Path("data/processed")
 SCRYFALL_CACHE_DIR = Path("data/raw/scryfall")
@@ -126,17 +132,57 @@ def _flatten(card: dict) -> dict:
     return out
 
 
+def source_sets(set_code: str) -> list[str]:
+    """Set codes whose cards can appear in <SET>'s boosters, this set first.
+
+    A `sources.json` written by day-0 onboarding wins over the static registry,
+    so a newly-released set with a bonus sheet needs no code change here.
+    """
+    override = PROCESSED_DIR / set_code / SOURCES_JSON
+    if override.exists():
+        return json.loads(override.read_text())
+    return [set_code] + COMPANION_SHEETS.get(set_code.upper(), [])
+
+
+def _discard_day0_artifacts(set_code: str) -> None:
+    """Drop everything keyed on the provisional day-0 card ids.
+
+    The marker, the static feature table (`onboard()` rebuilds it only when
+    ABSENT — a stale one would silently mis-index every feature row) and the
+    all-NaN placeholder snapshot with its registry. `sources.json` stays: the
+    Scryfall pool it names is still the right place to resolve CSV names.
+    """
+    from draftbot.data.features import SNAPSHOT_DIR  # lazy: features imports cards
+
+    proc = PROCESSED_DIR / set_code
+    for name in (DAY0_MARKER, "features.static.parquet"):
+        (proc / name).unlink(missing_ok=True)
+    reg = SNAPSHOT_DIR / set_code / "registry.json"
+    if reg.exists():
+        for fname in set(json.loads(reg.read_text()).values()):
+            start, _, end = Path(fname).stem.partition("_")
+            if start == end:  # day-0 placeholder: an empty [release, release] window
+                (reg.parent / fname).unlink(missing_ok=True)
+        reg.unlink()
+
+
 def build_cards(set_code: str, event: str = "PremierDraft") -> pd.DataFrame:
     """Build (or load, if already built) data/processed/<SET>/cards.parquet."""
     out_path = PROCESSED_DIR / set_code / "cards.parquet"
+    day0 = out_path.parent / DAY0_MARKER
     names = csv_pack_names(set_code, event)
-    if out_path.exists():
+    if out_path.exists() and not day0.exists():
         df = pd.read_parquet(out_path)
         assert list(df["name"]) == sorted(names), f"{out_path} inconsistent with CSV header"
         return df
+    if day0.exists():
+        # 17lands has published: the provisional day-0 vocab is superseded by
+        # the CSV's authoritative universe. Ids change here — see day0's
+        # docstring for why nothing may be carried across that boundary.
+        _discard_day0_artifacts(set_code)
 
     pool: dict[str, dict] = {}
-    for code in [set_code] + COMPANION_SHEETS.get(set_code.upper(), []):
+    for code in source_sets(set_code):
         for card in fetch_set_cards(code):
             pool.setdefault(norm_name(card["name"]), card)
 

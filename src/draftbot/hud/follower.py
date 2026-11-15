@@ -30,7 +30,7 @@ EVENT_NAME_SET = re.compile(r"(?:^|_)([A-Z][A-Z0-9]{2})_")  # PremierDraft_MSH_.
 
 RELEVANT_TOKENS = ("Draft.Notify ", "EventPlayerDraftMakePick",
                    "LogBusinessEvents", "DraftStatus", "BotDraft_DraftPick",
-                   "Draft_CompleteDraft", "Event_Join")
+                   "Draft_CompleteDraft", "Event_Join", '"CardPool"')
 
 
 @dataclass
@@ -60,6 +60,17 @@ class DraftJoined:
 
 
 @dataclass
+class SealedPool:
+    """The whole 6-booster pool from a sealed course message (P5.S4).
+    Arena delivers it in the Event_Join response and again in the courses
+    list on relaunch — both carry Course objects with a CardPool of grpIds
+    (verified live 2026-08-01, ArenaDirect_TLA_Play_Sealed)."""
+    event_name: str
+    course_id: str | None
+    card_ids: list[int]       # Arena grpIds, basics included
+
+
+@dataclass
 class DraftCompleted:
     draft_id: str
 
@@ -75,10 +86,40 @@ def _first_json(buffer: str) -> dict | None:
     return obj if isinstance(obj, dict) else None
 
 
+def _sealed_pools(buffer: str) -> list:
+    """Every sealed Course carrying a CardPool anywhere in the statement.
+    Scans the raw buffer rather than the first JSON: the Course response is a
+    bare-JSON line that shares a buffer with whatever statement preceded it."""
+    out, dec, i = [], json.JSONDecoder(), 0
+    while True:
+        i = buffer.find('{"Course', i)
+        if i < 0:
+            return out
+        try:
+            obj, end = dec.raw_decode(buffer[i:])
+        except json.JSONDecodeError:
+            i += 8
+            continue
+        i += end
+        courses = obj.get("Courses") or \
+            ([obj["Course"]] if isinstance(obj.get("Course"), dict) else [])
+        for c in courses:
+            name = c.get("InternalEventName") or ""
+            pool = c.get("CardPool")
+            if pool and "Sealed" in name:
+                out.append(SealedPool(event_name=name,
+                                      course_id=c.get("CourseId"),
+                                      card_ids=[int(x) for x in pool]))
+
+
 def parse_statement(buffer: str) -> list:
     """Turn one buffered log statement into 0..n events."""
     if not any(tok in buffer for tok in RELEVANT_TOKENS):
         return []
+    if '"CardPool"' in buffer:  # sealed course — no other branch understands it
+        pools = _sealed_pools(buffer)
+        if pools:
+            return pools
     obj = _first_json(buffer)
     if obj is None:
         return []

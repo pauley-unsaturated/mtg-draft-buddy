@@ -5,9 +5,11 @@
 The trunk is a feature-only ModernDraftBot with a set-summary token, built with
 a dummy home vocab; every batch swaps in its set's card context. Stat-dropout
 (p per batch) swaps the statless feature table so day-0 inference is a trained
-condition. Zero-shot MSH-val top-1 is logged every eval_every steps — the
-hill-climb signal. MSH data NEVER enters training; its snapshots are used at
-eval time only (quarantine discipline; see tests/test_quarantine.py).
+condition. Zero-shot <track_set>-val top-1 is logged every eval_every steps — the
+hill-climb signal (`track_set` in the config; default MSH for the historical
+runs, HOB — the current sandbag — for anything new). The tracker's data NEVER
+enters training; its snapshots are used at eval time only (quarantine
+discipline; see tests/test_quarantine.py).
 """
 
 import argparse
@@ -31,43 +33,67 @@ from draftbot.models.modern import ModernDraftBot
 from draftbot.train.loop import CKPT_ROOT, cosine_lr, set_seed
 
 T_MAX = 45  # draft-booster era: 3×15; play boosters: 3×14
+# D2 aux targets: the STRENGTH stats the pick loss under-teaches (the probe
+# reads pick order — ALSA/ATA — at ρ≈.8 from static alone, GIH at .18).
+STAT_AUX_TARGETS = ["ever_drawn_win_rate", "game_win_rate", "drawn_improvement_win_rate"]
+
+
+def drop_text(statless_batch: bool, text_when: str | None, text_dropout: float,
+              rng: np.random.Generator) -> bool:
+    """Whether this batch sees the text block zeroed (policy + dropout)."""
+    if text_when == "statless" and not statless_batch:
+        return True
+    return bool(text_dropout) and rng.random() < text_dropout
 
 
 def build_trunk(cfg: dict, feat_dim: int) -> ModernDraftBot:
     dummy = torch.zeros(1, feat_dim)
+    n_aux = (len(cfg.get("stat_aux_targets", STAT_AUX_TARGETS))
+             if cfg.get("stat_aux_lambda", 0) else 0)
     return ModernDraftBot(
         0, dummy, t=T_MAX, emb_dim=cfg.get("emb_dim", 256),
         layers=cfg.get("layers", 6), heads=cfg.get("heads", 8),
         dropout=cfg.get("dropout", 0.1), use_set_encoder=True,
-        pointer_head=True, feature_only=True, use_set_token=True)
+        pointer_head=True, feature_only=True, use_set_token=True,
+        stat_targets=n_aux)
 
 
 class ZeroShotEval:
-    """Frozen MSH-val pack sequences + feature tables in all three stat modes."""
+    """Frozen <track>-val pack sequences + feature tables in all three stat modes.
 
-    def __init__(self, scaler: dict, device):
-        splits = load_splits("MSH")
+    `track` is the hill-climb signal set — the CURRENT sandbag once it has val
+    data (HOB from 2026-09-05), else the most recently promoted set (MSH was
+    the tracker for EXP-030/033; it is in-corpus since pretrain_v2, so its
+    "zero-shot" number is really an in-corpus fit)."""
+
+    def __init__(self, scaler: dict, device, track: str = "MSH",
+                 text: str | None = None, text_when: str | None = None):
+        self.track = track
+        splits = load_splits(track)
         from draftbot.data.dataset import load_draft_arrays
-        self.arr = load_draft_arrays("MSH", draft_ids=set(splits["random"]["val"]))
+        self.arr = load_draft_arrays(track, draft_ids=set(splits["random"]["val"]))
         es = splits["expert_subset"]
         m = self.arr.meta
         self.expert_mask = ((m["user_win_rate"].fillna(0) >= es["min_win_rate"])
                             & (m["user_n_games"] >= es["min_games"])).to_numpy()
         self.tables = {}
         for mode in ("none", "week1", "full"):
-            feats, _ = assemble("MSH", None if mode == "none" else mode,
-                                scaler={c: scaler[c] for c in scaler})
+            feats, _ = assemble(track, None if mode == "none" else mode,
+                                scaler={c: scaler[c] for c in scaler}, text=text)
             if mode == "none":
                 # static-only table lacks stat columns; rebuild at full width
-                full, _ = assemble("MSH", "full", scaler=scaler)
+                full, _ = assemble(track, "full", scaler=scaler, text=text)
                 from draftbot.data.corpus import _statless
                 feats = _statless(full)
+            elif text and text_when == "statless":  # text is a day-0 fallback only
+                from draftbot.data.features import zero_text_block
+                feats = zero_text_block(feats)
             self.tables[mode] = torch.tensor(add_bias_row(feats)).to(device)
 
     @torch.no_grad()
     def top1(self, model: ModernDraftBot, mode: str, device,
              batch: int = 512) -> tuple[float, float]:
-        """(overall, expert-subset) MSH-val top-1; expert drives best.pt."""
+        """(overall, expert-subset) <track>-val top-1; expert drives best.pt."""
         model.eval()
         model.embedding.set_context(self.tables[mode])
         rows = []
@@ -97,12 +123,16 @@ def main(argv=None):
     scaler = None
     if args.resume and (ckpt_dir / "scaler.json").exists():
         scaler = load_scaler(ckpt_dir / "scaler.json")
+    text = cfg.get("text_features")  # P3.T5c: oracle-text block, None = off
     bundles, scaler = load_corpus(Path(cfg["corpus"]),
-                                  skill_filter=cfg.get("skill_filter"), scaler=scaler)
+                                  skill_filter=cfg.get("skill_filter"), scaler=scaler,
+                                  text=text)
     save_scaler(scaler, ckpt_dir / "scaler.json")
     feat_dim = bundles[0].features_full.shape[1]
     (ckpt_dir / "meta.json").write_text(json.dumps(
-        {"feat_dim": feat_dim, "t_max": T_MAX, "corpus": cfg["corpus"]}))
+        {"feat_dim": feat_dim, "t_max": T_MAX, "corpus": cfg["corpus"],
+         "text_features": text}))
+    (ckpt_dir / "feature_columns.json").write_text(json.dumps(bundles[0].columns))
 
     model = build_trunk(cfg, feat_dim).to(device)
     n_params = sum(p.numel() for p in model.parameters())
@@ -127,12 +157,40 @@ def main(argv=None):
         step, best_zs = state["step"], state["best_zs"]
         print(f"resumed at step {step} (best zs {best_zs:.4f})", flush=True)
 
-    zse = ZeroShotEval(scaler, device)
+    track = cfg.get("track_set", "MSH")
+    assert track not in {c for c in yaml.safe_load(Path(cfg["corpus"]).read_text())["sets"]} \
+        or track == "MSH", f"track_set {track} is in the corpus — not a zero-shot signal"
+    zse = ZeroShotEval(scaler, device, track, text, cfg.get("text_when"))
     writer = SummaryWriter(log_dir=str(Path("runs") / exp))
     rng = np.random.default_rng(cfg.get("seed", 17) + step)
     tables = {b.code: (torch.tensor(b.features_full).to(device),
                        torch.tensor(b.features_statless).to(device))
               for b in bundles}
+    # D2: per-set aux targets (z-scored strength stats) + validity from the
+    # full table's missing-masks; the head reads the STATLESS table.
+    aux_lambda = float(cfg.get("stat_aux_lambda", 0.0))
+    aux = {}
+    if aux_lambda:
+        names = cfg.get("stat_aux_targets", STAT_AUX_TARGETS)
+        for b in bundles:
+            ti = [b.columns.index(n) for n in names]
+            mi = [b.columns.index(f"{n}__miss") for n in names]
+            full_t = tables[b.code][0]
+            aux[b.code] = (full_t[:-1, ti], 1.0 - full_t[:-1, mi])
+    # whole-block text dropout per batch (regulariser against memorising
+    # corpus card text; docs/TEXT_EMBED_PLAN.md §D1)
+    text_dropout = float(cfg.get("text_dropout", 0.0))
+    # `text_when: statless` — the text block is present ONLY in stat-dropout
+    # batches (and, at inference, only when stats are missing): text is a
+    # day-0 fallback, and the stats pathway is exactly the no-text one.
+    # EXP-050/051 (text always on) paid ~1pt with stats on the holdout.
+    text_when = cfg.get("text_when")
+    # `text_noise: σ` — per-dim Gaussian jitter on the (z-scored) text block
+    # per batch, so the model can only learn functions smooth over the
+    # embedding space (a card's fingerprint must wander past its neighbours;
+    # journal 2026-09-05: nearest different card cos .90 vs random .66).
+    text_noise = float(cfg.get("text_noise", 0.0))
+    text_idx = [i for i, c in enumerate(bundles[0].columns or []) if c.startswith("text_")]
     it = batch_iterator(bundles, cfg.get("batch_drafts", 64), rng)
     model.train()
     start = time.time()
@@ -145,7 +203,15 @@ def main(argv=None):
         if step >= total_steps:
             break
         full_tab, statless_tab = tables[bundle.code]
-        table = statless_tab if rng.random() < stat_dropout else full_tab
+        statless_batch = rng.random() < stat_dropout
+        table = statless_tab if statless_batch else full_tab
+        if text_idx and drop_text(statless_batch, text_when, text_dropout, rng):
+            table = table.clone()
+            table[:, text_idx] = 0.0
+        elif text_idx and text_noise:
+            table = table.clone()
+            table[:-1, text_idx] += torch.randn(table.shape[0] - 1, len(text_idx),
+                                                device=table.device) * text_noise
         model.embedding.set_context(table)
         packs = torch.from_numpy(bundle.arrays.packs[idx].astype(np.int64)).to(device)
         prev = torch.from_numpy(bundle.arrays.prev_picks[idx].astype(np.int64)).to(device)
@@ -157,6 +223,10 @@ def main(argv=None):
         optim.zero_grad(set_to_none=True)
         logits = model(packs, prev)
         loss = slot_nll(logits, packs, picks, w, smoothing)
+        if aux_lambda:
+            tgt, valid = aux[bundle.code]
+            aux_loss = model.stat_aux_loss(statless_tab, tgt, valid)
+            loss = loss + aux_lambda * aux_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.get("grad_clip", 1.0))
         optim.step()
@@ -164,6 +234,8 @@ def main(argv=None):
         if step % 100 == 0:
             writer.add_scalar("pretrain/loss", float(loss.detach()), step)
             writer.add_scalar("pretrain/lr", lr, step)
+            if aux_lambda:
+                writer.add_scalar("pretrain/aux_mse", float(aux_loss.detach()), step)
         if step % eval_every == 0 or step == total_steps:
             zs = {m: zse.top1(model, m, device) for m in ("none", "week1", "full")}
             mins = (time.time() - start) / 60
@@ -171,14 +243,20 @@ def main(argv=None):
                   + " ".join(f"{m} {o:.4f}/exp {e:.4f}" for m, (o, e) in zs.items())
                   + f" ({mins:.1f} min)", flush=True)
             for m, (o, e) in zs.items():
-                writer.add_scalar(f"zeroshot_msh_val/{m}", o, step)
-                writer.add_scalar(f"zeroshot_msh_val/{m}_expert", e, step)
+                writer.add_scalar(f"zeroshot_{track.lower()}_val/{m}", o, step)
+                writer.add_scalar(f"zeroshot_{track.lower()}_val/{m}_expert", e, step)
             save(ckpt_dir / "last.pt")
-            if zs["week1"][1] > best_zs:  # expert-subset week1 selects best.pt
-                best_zs = zs["week1"][1]
+            # best.pt selection (expert subset). Historical rule: week1 only —
+            # it picked EXP-034's step 44k while the day-0 axis kept rising to
+            # 52k (journal 2026-09-05). `select_on: [none, week1]` averages the
+            # listed modes so a day-0 gain is not invisible to selection.
+            sel = float(np.mean([zs[m][1] for m in cfg.get("select_on", ["week1"])]))
+            if sel > best_zs:
+                best_zs = sel
                 save(ckpt_dir / "best.pt")
     writer.close()
-    print(f"done: best zero-shot(week1) MSH val top-1 = {best_zs:.4f}")
+    print(f"done: best zero-shot({'+'.join(cfg.get('select_on', ['week1']))}) "
+          f"{track} val expert top-1 = {best_zs:.4f}")
     return 0
 
 

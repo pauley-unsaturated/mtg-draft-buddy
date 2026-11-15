@@ -60,3 +60,41 @@ def test_shorter_t_than_max():
 def test_feature_only_learned_half_is_zero():
     model = build()
     assert model.embedding.learned.weight.abs().sum() == 0
+
+
+def test_stat_aux_head_masked_mse_ignores_missing_and_is_optional():
+    """P3.T5c D2: the stat-reconstruction head reads the feature half of the
+    STATLESS table; masked rows contribute nothing; no head ⇒ no new params
+    (every earlier checkpoint stays loadable)."""
+    torch.manual_seed(0)
+    model = ModernDraftBot(40, torch.randn(41, F), t=8, emb_dim=32, layers=1, heads=4,
+                           feature_only=True, use_set_token=True, stat_targets=3)
+    feats = torch.randn(41, F)
+    tgt, valid = torch.randn(40, 3), torch.ones(40, 3)
+    valid[:20] = 0.0  # half the cards have no measured stat
+    loss = model.stat_aux_loss(feats, tgt, valid)
+    assert torch.isfinite(loss) and loss.requires_grad
+    garbage = tgt.clone()
+    garbage[:20] = 1e6
+    assert torch.allclose(loss, model.stat_aux_loss(feats, garbage, valid))
+    assert model.stat_aux_loss(feats, tgt, torch.zeros(40, 3)).item() == 0.0
+    assert build().stat_head is None
+    assert not any(k.startswith("stat_head") for k in build().state_dict())
+
+
+def test_text_when_statless_policy():
+    """`text_when: statless` zeroes the text block whenever stats are present;
+    plain text_dropout is unchanged; no policy + no dropout never touches it."""
+    import numpy as np
+    from draftbot.train.pretrain import drop_text
+    rng = np.random.default_rng(0)
+    assert drop_text(statless_batch=False, text_when="statless", text_dropout=0.0, rng=rng)
+    assert not drop_text(statless_batch=True, text_when="statless", text_dropout=0.0, rng=rng)
+    assert not any(drop_text(False, None, 0.0, rng) for _ in range(20))
+    hits = sum(drop_text(True, "statless", 0.5, rng) for _ in range(400))
+    assert 150 < hits < 250  # dropout still applies inside statless batches
+    import pandas as pd
+    from draftbot.data.features import zero_text_block
+    df = pd.DataFrame({"cmc": [1.0, 2.0], "text_x_000": [0.3, -0.2], "gih": [0.5, 0.6]})
+    z = zero_text_block(df)
+    assert (z["text_x_000"] == 0).all() and (z["cmc"] == df["cmc"]).all() and (df["text_x_000"] != 0).all()

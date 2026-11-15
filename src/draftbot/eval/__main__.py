@@ -44,6 +44,8 @@ def main(argv=None):
                    choices=["greedy", "expected", "maskgit", "rescore"],
                    help="override the checkpoint's decode (deck eval only; "
                         "the override is recorded in the model name)")
+    p.add_argument("--event", default="draft", choices=["draft", "sealed"],
+                   help="deck eval only: which decks to evaluate against")
     p.add_argument("--out", type=Path, default=None)
     args = p.parse_args(argv)
 
@@ -51,7 +53,8 @@ def main(argv=None):
         from draftbot.eval.decks import evaluate_deck, render_deck_markdown
         card = evaluate_deck(args.model, args.set_code, args.split,
                              args.stats_snapshot, scheme=args.scheme,
-                             out_dir=args.out, decode=args.decode)
+                             out_dir=args.out, decode=args.decode,
+                             source=args.event)
         print(render_deck_markdown(card))
         return 0
 

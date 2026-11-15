@@ -1,0 +1,27 @@
+# SEALED corpus: warm start × scratch LR (synthesis of EXP-131/132 findings).
+# EXP-131 (warm, lr 1.5e-4) started at 0.711 proxies and never improved —
+# fine-tune LR can't re-shape a draft trunk for 26-set sealed breadth.
+# EXP-132 (scratch, lr 3e-4) climbs steadily from 0.658. This run: EXP-126
+# warm start AND lr 3e-4, patience 4 (EXP-131's patience-3 was tight).
+exp: EXP-134
+task: deck
+model: builder
+corpus: configs/corpus/sealed_v1.yaml
+seed: 17
+init_from: checkpoints/EXP-126
+scaler_from: checkpoints/EXP-126
+batch_builds: 256
+epochs: 24
+patience: 4
+emb_dim: 128
+heads: 8
+blocks: 3
+dropout: 0.1
+weighting: uniform
+land_lambda: 0.2
+basics_lambda: 0.5
+stat_dropout: 0.25
+peak_lr: 3.0e-4
+lr_warmup: 1000
+weight_decay: 0.01
+grad_clip: 1.0

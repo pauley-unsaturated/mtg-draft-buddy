@@ -780,3 +780,559 @@ the HUD as already wired.
 Scryfall cache; training data excluded). Defaults to the frozen production
 checkpoints (EXP-033/116/126/127). Next-set workflow documented in the module
 docstring. Smoke test in tests/test_bundle.py.
+
+## 2026-07-31 — Sealed fast path: TLA event support in half a day (P5.S)
+
+Owner request: help building decks for the live Avatar sealed event. Corrected
+the target first — Scryfall has no "AVA"; the set is TLA, already onboarded
+with full stats and 114k draft builds inside decks_v2. 17lands DOES publish
+sealed game data (Sealed + TradSealed, every corpus set, schema-identical to
+draft game files) — and sealed needs NO draft-log join: pool = deck ∪ side by
+construction, so the AFR failure class doesn't exist here.
+
+Shipped as a pure ADDITION (owner constraint mid-build: nothing draft-side
+may move): `source="sealed"` threads through extractor/splits/dataset/eval/
+trainer with `draft` defaults everywhere; new artifacts only
+(decks.sealed.parquet, <SET>.sealed.json, tests/test_sealed_decks.py — the
+5-test gate with pool-size sanity replacing the draft-log identity test).
+Full suite green, all 11 skips pre-existing. TLA: 9,628 sealed builds /
+5,950 pools (extraction seconds).
+
+S2a controls (TLA sealed val, full stats) tell the story: human rebuild
+ceiling 0.9060 F1 / 0.9224 trophy — LOWER than draft's 0.95, as predicted
+(84-card unfiltered pools admit more legitimate builds). EXP-126 zero-shot
+0.6928/0.7201: beats every heuristic (in-lane 0.6029, gih-top23 0.5213,
+random 0.4194) but ~21pt off ceiling — the draft→sealed shift is COLOR choice:
+lands-MAE is already excellent (0.30) while basics-L1 is 9.2. EXP-130
+(EXP-127 recipe on TLA sealed, 0.8min) closes to 0.7261/0.7578 (+3.8pt
+trophy). 9.6k builds can't teach sealed color selection alone — that is the
+sealed-corpus pretrain's job (next entry).
+
+Owner interface: `python -m draftbot.build --set TLA --pool pool.txt` —
+Arena-export parsing, per-card membership confidence, bubble view (weakest
+in / best out). Smoke-run on a real 7-0 val pool produced a legal, coherent
+W-base build with the fixing land honestly at 51%. Winner-pref on sealed val
+is 14 pairs — meaningless at this scale, reported but ignored.
+
+## 2026-07-31 — Sealed corpus program closed: EXP-134 is the sealed trunk (P5.S3)
+
+27-set sweep first: the gate earned its keep immediately — 1-2%/set of sealed
+"builds" are 44-91-card unbuilt piles, and ~1% of LCI/EOE entries disagree
+with their own pool by one card. Both dropped at extract, logged, TLA rows
+refreshed (deltas ≤0.001). Final corpus: 26 sets / 335k train builds,
+sealed_v1 manifest = decks_v2 weights, EOE holdout.
+
+Three trunk runs, one plateau (~0.71 proxy trophy): EXP-131 (EXP-126 warm
+start, FT-class lr 1.5e-4) starts at 0.711 and never improves — a draft trunk
+won't re-shape at that lr. EXP-132 (scratch, 3e-4) climbs 0.658→0.705.
+EXP-134 (warm start × 3e-4, patience 4) = 0.7123, best of the three, lowest
+loss. The sealed-data wall is volume, not init: 335k builds is 1/11 of
+decks_v2.
+
+Holdout story (EOE sealed val, ceiling 0.8971 trophy): sealed corpus
+genuinely transfers — EXP-134 0.6421 full / 0.5432 none vs the draft trunk's
+0.5708/0.4795 (+7.1pt / +6.4pt) and vs in-lane 0.5504. Day-1 sealed is
+~64% of the way from heuristics to the human ceiling with ratings, less
+without — honest but far from the draft-side story (data-bound).
+
+In-corpus-needs-no-FT replicates on sealed: TLA val trophy — EXP-130 (FT of
+draft trunk) 0.7570, EXP-133 (FT of EXP-134) 0.7548, EXP-134 zero-shot
+0.7516, EXP-131 0.7533: a noise band. PRODUCTION: EXP-134 (CLI default,
+added to bundle defaults). EXP-130/133 remain on disk as TLA-max variants.
+
+Gap to ceiling on TLA sealed: 0.7516 vs 0.9066/0.9224 — the big remaining
+lever is sealed data volume; a second one worth a future proposal is joint
+draft+sealed training (shared trunk, format token). Both are new-EXP
+territory, not tweaks.
+
+## 2026-08-01 — Joint draft+sealed training: EXP-135 is production for BOTH deck formats (P5.S5)
+
+Owner directive: "a good deck is a good deck in limited" — joint-train with a
+format token, keep the model aimed at trophy-winning decks, and test the
+sealed-bombs hypothesis by fine-tuning toward winning sealed decks.
+
+Mechanism (additive; old checkpoints unaffected, tests/test_format_token.py):
+DeckBuilder(formats=True) adds a zero-init 2-row format embedding to every
+pool slot; DeckCorpusTrainer takes corpora=[{manifest, boost}] and reports
+per-format proxy val. EXP-135: decks_v2 + sealed_v1 (boost 4.0 → sealed 27%
+of samples), warm start EXP-126 × lr 3e-4 (the EXP-134 recipe), 4.0M builds,
+best at epoch 5 of 9 (2.4h).
+
+Result — the joint bet paid on the seen-set axis and cost nothing on draft:
+- Draft decks preserved: MSH 0.8989 (EXP-126: 0.9004), EOE 0.8987 (0.8981),
+  EOE none 0.8327 (0.8347) — all ≤0.2pt, noise.
+- TLA sealed 0.7576 trophy — best of the program, zero per-set fine-tune
+  (EXP-130 needed one to hit 0.7570; EXP-134 alone: 0.7516).
+- Epoch 5 beat BOTH solo trunks simultaneously on proxies (draft 0.9048 /
+  sealed 0.7146) — the draft gradient does lift sealed past its solo plateau.
+- The one concession: EOE sealed holdout 0.6328/0.5231 vs EXP-134's
+  0.6421/0.5432 — the sealed-only trunk keeps a 1-2pt day-0/day-1 edge on an
+  unseen set. Next-set recipe stays "refresh the joint corpus on release."
+
+Annealing probes (sealed-only continue-train of EXP-135): EXP-136 (uniform)
+flat everywhere. EXP-137 (win_skill — the bombs hypothesis) gained +1pt on
+sealed proxies AND +0.9pt on TLA 7-win-F1 (0.7775, best of program), but was
+flat on TLA/EOE trophy-F1 — directional support, not promotion-grade. Filed
+as the first lever to revisit when sealed data grows.
+
+PRODUCTION: EXP-135 (build CLI default with --format sealed; bundle swaps
+EXP-134 → EXP-135). HUD deck models untouched (EXP-126/127 per handoff — a
+swap to EXP-135 would need its own HUD-side validation). One trunk now
+builds trophy-class decks in both limited formats.
+
+## 2026-08-01 — HUD sealed mode shipped against a LIVE pool (P5.S4)
+
+Owner joined the ArenaDirect TLA sealed event; the Player.log capture became
+the parser spec: the Event_Join response carries a Course object with
+CardPool (84 grpIds) — same shape in the relaunch courses list. Port landed
+in one pass because every risky piece pre-existed: grp→vocab mapping went
+84/84 with zero /cards/arena fallbacks, DeckAdvisor.build() already takes a
+flat pool, and the panel auto-switches to the build view on a
+non-provisional deck.
+
+Additive surface: SealedPool event + buffer-scanning _sealed_pools() in the
+follower ("Sealed" in InternalEventName gates it — draft courses can't
+hijack), SealedState (reuses DraftState's resolver, drops basics per pool
+identity), DeckAdvisor.format_id, PROD_SEALED_DECK_MODELS=EXP-135. Locks in
+sealed use the probability-pinning path deliberately — it keeps the
+sealed-aware joint model in charge instead of the draft-trained EXP-116.
+Draft flow untouched; suite green.
+
+Fixture tests/fixtures/real_sealed_tla.log (sanitized: GUIDs zeroed, styles/
+collation/summary stripped, CardPool intact). tests/test_hud_sealed.py:
+parser → state (80 nonbasics after dropping 4 pool basics) → legal 40 →
+lock-respect. Replay renders the same build the CLI produced for the same
+pool — WU Katara/Fortune-Teller with a 2-Mountain/1-Forest splash off North
+Pole Gates.
+
+## 2026-08-01 — Production wart (filed, not fixed): hybrid pips inflate basics
+
+Live TLA sealed build: the basics head proposed 6P/7I/2M/1F for a deck whose
+every spell casts off WU — Suki ({G/W}{G/W}) and Messenger Hawk ({U/B})
+contribute phantom G/B pip mass to the static features, and the pip-aware
+basics allocation obliges. Owner registered 8P/8I (correct). Fix candidates
+when worth it: hybrid-aware pip features, or a castability check in decode.
+
+## 2026-08-11 — Day-0 onboarding: HOB drafted on release day, zero 17lands data (P4.T3)
+
+The Hobbit went live on Arena and the HUD could not see it. Three gaps, all
+load-bearing, none of them previously exercised — every set we had ever
+onboarded already had 17lands data by the time we touched it:
+
+1. `build_cards` derives the vocab from the `pack_card_*` columns of the
+   17lands CSV. `probe("HOB", "PremierDraft")` → None; no CSV, no vocab.
+2. `scorer_from_checkpoint(..., stats="none")` still calls
+   `assemble(set, "full")` to get the stat block's SHAPE before zeroing it —
+   so day-0 mode needed a snapshot that by definition cannot be computed.
+3. `grp_to_vocab` bridges Arena grpIds via Scryfall `arena_id`. Scryfall had
+   all 193 HOB + 103 HOC cards listed as `games: [..., arena]` with
+   `arena_id: null` — the backfill lags the Arena release. The
+   `/cards/arena/<id>` fallback 404s for the same reason. Not one pack would
+   have parsed.
+
+HUD_PLAN's "static-only mode still works via Scryfall + `none` stats" was
+therefore aspirational. It is real now.
+
+**Source of truth for day 0 is the Arena client itself.** It ships a SQLite
+card database (`Downloads/Raw/Raw_CardDatabase_<hash>.mtga`); `Cards` ⋈
+`Localizations_enUS` is grpId → name for every set the client has downloaded —
+i.e. available strictly before anything else in the world knows the set exists.
+New `draftbot.data.arena_db` reads it `mode=ro`; `draftbot.data.day0` turns it
+into the standard artifacts:
+
+    uv run python -m draftbot.data.day0 --set HOB
+
+vocab (Arena names → Scryfall card objects) → static features → an all-NaN
+stat snapshot registered under both `full` and `week1`. NaN is the point:
+`apply_scaler(add_masks=True)` maps it to 0 with every missing-mask on, which
+is exactly the stat-dropout condition the trunk was pretrained under. Day-0 is
+a trained-for condition, not a degraded one.
+
+Two Arena-DB gotchas, both caught by validating against MSH's known-good
+339-card vocab before trusting anything:
+- **`DraftContent` is not draftability.** Basics carry 0, and so does every
+  one of HOC's 104 cards. Filtering on it silently produced a 167-card vocab.
+  The filter is `IsToken = 0 AND IsPrimaryCard = 1`, which covers 339/339 of
+  MSH at the cost of 36 bonus-sheet cards that never reach a pack — the right
+  way round, since an over-wide vocab costs nothing at inference and a missing
+  card is a hole in the pack.
+- **Names carry display markup.** Arena wraps hyphenated names to prevent line
+  breaks (`<nobr>Lake-town</nobr> Lookout`); unstripped, 26 HOB names missed
+  Scryfall entirely.
+
+HOB result: **296 cards** (= Scryfall's 193 HOB + 103 HOC exactly), 308 grpIds,
+zero unresolved names, static feature columns identical to MSH's. Bonus sheet
+discovered from Scryfall's `parent_set_code` graph rather than the hardcoded
+`COMPANION_SHEETS`, and persisted to `sources.json`, which now overrides that
+registry everywhere (`source_sets()`) — the next set needs no code edit.
+Verified end to end: EXP-033 ranks a P1P1 (prob mass 1.0), EXP-126/116 build a
+legal 40, EXP-135 builds a legal sealed 40, `infer_set` recognises HOB from
+raw grpIds, and `--stats full` produces a bit-identical table to `--stats none`
+for a day-0 set, so the flag cannot be got wrong.
+
+Everything is PROVISIONAL and says so: a `.day0` marker sits next to
+cards.parquet, and `build_cards` now regenerates from the CSV (dropping the
+marker) the moment 17lands publishes. **Card ids change at that boundary** —
+nothing trained on day-0 ids may outlive it. No leaderboard row: HOB has no
+val split to evaluate against, and won't until 17lands publishes.
+
+Bundle now carries the day-0 sidecars (`sources.json`, `.day0`) — without
+sources.json the target machine drops the entire bonus sheet from both the
+grpId bridge and the art map. tests/test_day0.py: 13 tests, the Arena-DB half
+hermetic against a miniature fixture DB. Full suite green (11 pre-existing
+skips).
+
+## 2026-09-05 — HOB data landed: the day-0 claim measured for real; recipe review before the HOB runs
+
+17lands published HOB (PremierDraft 43,639 drafts / 1,832,838 picks, t=42,
+dates 2026-08-11 → 08-29; game data for Premier/Trad/Sealed/TradSealed).
+Protocol followed in order: HOB → `quarantine` in pretrain_v2 / decks_v2 /
+sealed_v1 (test_latest_manifest_has_sandbag is no longer xfail; PLAN §0 names
+HOB), THEN download, THEN `onboard_set --set HOB --base EXP-033
+--skip-finetune`. HOB is the first set to cross the day-0 → CSV boundary, and
+crossing it found two bugs in last month's day-0 path:
+- **Stale static features survived the id change.** `onboard()` rebuilds
+  `features.static.parquet` only when absent; `build_cards` dropped the
+  `.day0` marker but left the table keyed on day-0 ids — every feature row
+  would have been silently mis-indexed. `build_cards` now sweeps the marker,
+  the static table and the placeholder snapshot/registry
+  (`_discard_day0_artifacts`, hermetic test).
+- **HOC is not a bonus sheet.** The CSV has exactly 193 pack names =
+  Scryfall's HOB; HOC ("The Hobbit Eternal", `set_type: eternal`) is the
+  Commander companion Arena downloads for Brawl. `discover_sources` now keeps
+  only `masterpiece`-type children (BRR/EOS/FCA/MUL/STA/WOT all are). Day-0
+  impact: 103 non-draft cards in the vocab, so the set-summary token averaged
+  the wrong universe; pack ranking itself was unaffected (the pointer head
+  scores in-pack cards only).
+
+**The ultimate eval** (PLAN Phase 3: "on next-set release day the day-0 claim
+gets tested for real"). HOB val, 2,202 drafts; nothing below has seen an HOB
+pick (scorecards docs/scorecards/onboard/HOB/, leaderboard rows added):
+
+| expert top-1 (top-1)        | none = day 0    | day3            | week1           | full            |
+|-----------------------------|-----------------|-----------------|-----------------|-----------------|
+| EXP-033 (production trunk)  | .5387 (.5453)   | .6644 (.6536)   | .6801 (.6636)   | .6855 (.6675)   |
+| EXP-030 (v1 trunk)          | .5358 (.5435)   | —               | .6754 (.6595)   | —               |
+| best heuristic              | rarity .3255    | —               | gih-greedy .3844| alsa .4637      |
+
+Reference: EXP-033 on MSH (in corpus) full .6955 expert (harness; the
+tracker printed .6962); EXP-013 (MSH-only
+best) .6985 on test. Reading: the day-0 claim holds — .54 with zero stats
+beats every stats-armed heuristic by ≥ 8 pts and matches MSH's day-0
+(.5239 test / .537 val). Three days of data recover 12.5 of the 15-pt gap;
+week-1 stats are essentially final for a popular set (GIH-WR corr .991 with
+full-season, median 4,025 games/card at week 1, 2,497 at day 3). Zero-shot
+full sits 1.1 pt under MSH-in-corpus — that gap is the fine-tune's job.
+Watchdogs: rare-take 1.52× expert at day 0 (1.07× by week 1 — without stats
+the trunk leans on rarity), ECE ≤ .025 throughout, skill-gap −.009 at day 0
+(same sign as MSH day-0 −.011: without stats the trunk cannot separate expert
+taste — the text lever's job, §3 below).
+
+Deck builder, HOB val draft decks (53,242 builds extracted): EXP-126 trophy-F1
+none .8477 / full .8855; EXP-135 full .8887; gih-in-lane-build .8291; rebuild
+ceiling .9590. Third holdout, same shape as EOE (.8347 / .8981) and MSH
+(.8298 / .8871). Sealed (15,152 builds, 552 val): EXP-135 full .6809 / none
+.4957 vs ceiling .8949 and gih-in-lane .5617 (TLA .7576, EOE .6328).
+
+**Recipe review** (owner ask: anything big we're getting wrong, or quick wins,
+before the HOB runs). Solid and not worth touching: the v2 architecture, the
+eval suite with its skill slices and watchdogs, split/quarantine hygiene,
+stat masks + stat-dropout (day-0 is demonstrably a trained condition), soft
+weighting on the deck side, LoRA ≈ full-FT, the deck recipe probed to plateau.
+What is not:
+1. **The draft trunk was never hill-climbed.** P3.T5 is still unchecked;
+   EXP-033 is the P3.T4 "pretrain-small" recipe run once more on corpus v2.
+   Its tensorboard curve was still rising when the 20k-step cosine reached
+   zero (MSH expert none .5324@13k → .5370@20k, full .6942 → .6962, week1
+   .6832 → .6852). 20k × 64 = 1.28M draft-samples ≈ **1.2 epochs** of the
+   1.07M-draft used corpus, against 24 epochs for the deck trunk — where
+   epochs 12 → 24 bought +0.32 day-1 (EXP-124). Lever: total_steps 60k
+   (~5h, resumable). The tracker is now configurable (`track_set`, default
+   MSH for provenance); new runs track HOB — MSH is in-corpus, so EXP-033's
+   "zero-shot" MSH signal was an in-corpus fit.
+2. **The pretrain still hard-filters by skill, against the project's own
+   repeated finding.** `skill_filter 0.54/50` discards 1.47M of the 3.07M
+   train drafts, then the 40k cap discards 0.53M more: the trunk trains on
+   35% of the corpus. Both halves of the project found soft weighting beats
+   hard curation (EXP-013 vs the filtered runs; EXP-105 on decks), the deck
+   trunk trains unfiltered, and the production-lock entry recorded it as a
+   lesson — but the pretrain configs never absorbed it. Lever: drop
+   skill_filter (importance weights stay). At the same 40k cap this is the
+   clean equal-volume test of the hypothesis.
+3. **Card text is invisible, and that is the entire day-0 gap.** none → day3
+   is 12.5 pts. No static feature separates Thranduil's Decree from Sound
+   the Trumpets (2026-08-11 analysis); the P3.T5 "ceiling-raiser" lever
+   (frozen sentence embedding of oracle text appended to the static block)
+   was never run. Literature check: arXiv 2607.04782 (Jul 2026) builds
+   set-contextualised card embeddings from oracle text with a 768-d text
+   encoder; UrzaGPT (arXiv 2508.08382, LLM + LoRA on draft logs) reports 66%
+   fine-tuned and GPT-4o 43% zero-shot — under our supervised numbers, so the
+   LLM route is unattractive and the feature route is the one to take. HOB is
+   now an honest yardstick for it (day-0 .5387 to beat).
+4. Minor: no bf16 autocast despite the P2 design note (throughput only);
+   `MIN_GAMES_FOR_WR = 5` is generous; EXP-033 had no leaderboard row (its
+   MSH rows are added below). Not a lever: stat-noise augmentation — week-1
+   stats are near-final (above) and day-3 costs only 1.6 pt.
+
+Proposed next runs — configs written, NOT launched, owner picks the order:
+EXP-034 (EXP-033 recipe, 60k steps, track HOB), EXP-035 (= 034 minus the
+skill filter), EXP-036 (full-FT EXP-033 → HOB: the current-set drafter;
+expect ≥ .69 expert from the MSH FT curves), EXP-138 (EXP-127 recipe:
+EXP-126 → HOB deck fine-tune, ~8 min). The text-embedding lever is a P3.T5
+proposal: a new static-feature block + scaler + a pretrain (~1 day). After
+any of these ship: rebuild the laptop bundle — the day-0 HOB artifacts over
+there are dead (296 → 193 cards, new ids).
+
+## 2026-09-05 — Launched: EXP-138 → EXP-036 → EXP-034 (owner: "kick off 138 and 036, queue 034 overnight")
+
+Chained on the single MPS device in that order (logs/<EXP>.log, caffeinate).
+Each run is followed by its HOB val eval into docs/scorecards/onboard/HOB/;
+EXP-034 gets the three zero-shot modes. Leaderboard rows follow from those
+JSONs. Bars: EXP-138 > .8855 trophy-F1 (EXP-126 zero-shot); EXP-036 > .6855
+expert (EXP-033 zero-shot full); EXP-034 vs EXP-033 on HOB val, all modes
+(none .5387 / week1 .6801 / full .6855).
+- **EXP-138 done (2 min):** HOB val trophy-F1 **0.9140** vs EXP-126 zero-shot
+  0.8855 (+2.85; ceiling 0.9590), basics-L1 1.58 vs 2.33. Bigger lift than the
+  MSH gap-window estimate (+1.3) — HOB's stats-armed zero-shot started lower.
+  Production HOB deck builder candidate; bundle after EXP-036.
+
+## 2026-09-05 — Next steps for the three recipe changes (owner discussion)
+
+Owner: the text lever "would capture quite a bit of alpha for day-0 drafts
+next set" — proposal written: **docs/TEXT_EMBED_PLAN.md** (frozen bge-base
+oracle-text block in the static features + a stat-reconstruction auxiliary
+head so the text pathway is trained directly on 30 sets of measured card
+strength; EXP-050/051/052 + EXP-139 for decks; HOB val `none` is the bar).
+Training length: EXP-034 (60k) is in the overnight slot; read its curve at
+2k-step resolution — still rising at 60k → EXP-034b at 120k; promote at
+≥ +0.5 on any HOB mode with the others within 0.2.
+Curation: owner ruling — "17lands players are mostly self-selecting good
+players; we only need to reject the bottom of the barrel." Measured over the
+2.81M v2 train drafts with skill metadata: the median drafter is ≈ .54 game
+WR, so the 0.54/50 filter keeps 48% — it rejects the bottom HALF of an
+already-selected population. EXP-035 is now that light cut (WR ≥ .46,
+≥ 10 games; keeps 87%; soft weights stay); EXP-037 = no filter, the ladder's
+control. Cap stays 40k so 034/035/037 are equal-volume; raising the cap is
+the next lever if the light cut wins (more sets would then hit it).
+Order after EXP-034 lands: EXP-035 → text implementation (½ day) → EXP-050
+→ EXP-037 / EXP-051 as overnight slots allow.
+- **EXP-036 done (16 min, early stop epoch 5):** HOB val top-1 **0.6905 /
+  expert 0.7100**, NLL 0.809, ECE 0.006, rare-take 1.04× expert, colors 2.25
+  (human 2.31). +2.45 expert over EXP-033 zero-shot full (.6855); above every
+  drafter this project has measured on any set (EXP-013 MSH val .7020,
+  EXP-031 .7047). Production HOB drafter candidate alongside EXP-138 for decks:
+  `--models checkpoints/EXP-036 --deck-models checkpoints/EXP-138`.
+
+## 2026-09-05 — EXP-034 (60k steps) NEGATIVE: training length is not the draft-trunk lever; selection signal fixed
+
+EXP-034 = EXP-033 recipe × 3 steps (60k, 306 min), tracked on HOB. Harness,
+HOB val expert top-1 (EXP-033 in brackets): none .5391 (.5387), week1 .6831
+(.6801), full .6889 (.6855) — +0.0 / +0.3 / +0.3, all under the +0.5 promote
+bar. EXP-033 stays the production trunk. The curve says why: every stats mode
+plateaued by step 16k (≈ 1 epoch of the filtered corpus) — week1 .6828@16k
+vs .6831@44k (best) vs .6804@60k. The trunk saturates on the corpus AS
+FILTERED, which is exactly the EXP-035 question (light cut = 1.8× the
+drafts). Two lessons kept:
+1. **Longer pretraining moved the day-0 axis, not the stats axes** — the same
+   shape as the deck probe (EXP-124): `none` rose .5327@16k → .5451@52k
+   (+1.2 in-run), while week1/full sat flat. But best.pt is chosen on week1
+   expert, so it landed on step 44k and the harness reads none .5391; the
+   final checkpoint reads **.5421** (row added as EXP-034@last). Selection was
+   blind to the axis that moved. `select_on: [none, week1]` (mean of expert
+   top-1 over the listed modes) is now a config key — default stays the
+   historical week1 rule for provenance; EXP-035/037 use the two-axis rule.
+2. Eval noise at this scale: 2,202 val drafts, ±0.3 between adjacent 2k-step
+   evals; promote bars of +0.5 are the right size, ±0.3 results are ties.
+
+## 2026-09-05 — P3.T5c built and calibrated: text block + aux head land; probe says +2 realistic, not +10
+
+Owner: "get cracking on the card text plan… any estimates, or quick
+experiments to calibrate? Any ablations?" Built D1 and D2 in one pass
+(commits 00aa40e + this): `data/text_features.py` (frozen bge encoders,
+name-masked card strings, sha-cached parquet), `assemble(text=)` threaded
+through train / corpus / loading / deck / day0 / bundle, `stat_aux_lambda`
+(GIH/GP/IWD reconstruction head on the statless feature half) and
+`text_dropout` in the pretrain loop, hermetic tests, and a smoke run of the
+whole path (feat_dim 1539, head saved, loads through the standard eval).
+sentence-transformers is the optional `[text]` extra; the laptop needs it
+only to onboard a set on day 0 (the bundle ships the parquet).
+
+Calibration (docs/TEXT_EMBED_PLAN.md §6, 15 min of CPU): text roughly
+doubles what the model can know about a card's strength before anyone plays
+it — ridge → GIH ρ on HOB .18 static → .40 static+text (LOSO .33 → .45) —
+but the channel is bounded: the MLP read does not beat ridge, kNN is weaker,
+bge-large is WORSE than bge-base (.33 vs .40), masked format wins. Two
+negatives worth keeping: a text-GIH greedy bot drafts at .29 (below
+rarity-first), and imputing predicted stats into EXP-033's stat block costs
+1.2 pts with rare-take 2.2× — the trunk trusts stats; text must come in
+through the embedding with masks honest, which is D1+D2's design.
+**Estimate: +2 expert top-1 at day 0 realistic, +4 optimistic; < +0.5 is a
+negative.** The unmeasured upside is pool-context reading in picks 5+.
+
+Runs (configs written; EXP-033's 20k recipe so each is ~2h and one lever):
+EXP-050 text block; EXP-051 + aux head λ 0.1; EXP-052 + text dropout 0.1
+(only if 050/051 diverge on `none`). Ablations settled by the probe, not by
+5-h runs: encoder (base), format (masked). Left for the runs: aux λ (0.1 vs
+0.3) and PCA-128 vs raw 768, both only if 051 is positive. Deck side
+EXP-139 after the draft verdict. EXP-035 (curation) still queued.
+- **Launched** (owner: "are we going to do 050?"): EXP-050 → EXP-051 chained
+  (logs/, caffeinate), each followed by HOB val none/week1/full + MSH val
+  full (the in-corpus guard); rows land via the watcher.
+
+## 2026-09-05 — EXP-050/051: text buys +1.2 at day 0 and costs ~1 with stats on the holdout; EXP-053 makes text a day-0 fallback
+
+HOB val expert top-1 (EXP-033 in brackets); MSH full = the in-corpus guard:
+
+| | none | week1 | full | MSH full |
+|---|---|---|---|---|
+| EXP-050 text block | .5513 (+1.26) | .6686 (−1.15) | .6737 (−1.18) | .6989 (+0.34) |
+| EXP-051 + aux head λ .1 | .5509 (+1.22) | .6732 (−0.69) | .6780 (−0.75) | .6945 (−0.10) |
+
+Reading: the day-0 gain is real and replicated (+1.2 twice — inside the
+probe's "+2 realistic" band, at its low end). The stats-mode loss on the
+never-seen set is the memorisation signature the plan flagged: in-corpus MSH
+with stats goes UP while held-out HOB with stats goes DOWN — the model learns
+text×stats combinations that fit corpus cards and do not transfer. The aux
+head halves that loss (−0.7) at no day-0 cost. Bars: none ✓ (≥ +0.5),
+week1/full ✗ (not within 0.2). Neither promotes. Side readings at day 0:
+skill-gap −.0001 vs −.0085 (text closes half the expert-taste gap — the
+hypothesis from 2026-08-11 holds), rare-take 1.47×/1.41× vs 1.52×, but ECE
+.075 vs .013 — text makes the day-0 model over-confident.
+
+Fix by construction rather than by regularisation: `text_when: statless` —
+the text block is present only in stat-dropout batches and, at inference,
+only when stats are missing (`zero_text_block` in every loader path, the
+tracker included). week1/full then run the EXP-033 pathway exactly; text is
+a day-0 fallback. EXP-053 = 051 + that; EXP-052 (text_dropout .1, the
+pre-registered soft regulariser) runs after it as the comparison. Launched
+053 → 052 chained with the same evals + row watcher.
+
+## 2026-09-05 — Why the text block memorises: it is a card id. Control + noise queued (EXP-054/055)
+
+Owner: "I was imagining the embedding space to be small and that the model
+would cluster on semantic distance — in reality the dimensionality is enough
+to just give us an identity per card." Measured on the 9,210 corpus cards
+(8,665 names, 545 reprints): random-pair cosine .66 (sd .06), nearest
+DIFFERENT card .90 — every card sits ~4 sd from anything it is not. PCA-32
+keeps 58% of the variance and still separates (nearest .83 vs random .00):
+any smooth injective projection keeps identity; only lossiness or noise
+removes it. The semantic structure is there (probe kNN/ridge), but nothing
+makes the trunk prefer it over the id when both are on offer and the id fits
+the corpus better. Not a capacity problem — scale failed twice here already;
+a bigger trunk memorises more.
+Queued behind the 053/052 chain: **EXP-054** = EXP-050 with the text block
+replaced by a fixed random unit vector per card name (all identity, no
+semantics): if it reproduces 050's in-corpus gain and holdout loss with
+stats, the effect is identity; its `none` axis says how much of the +1.2 was
+semantic. **EXP-055** = EXP-053 + `text_noise 1.0` (per-dim jitter of 1 sd
+on every text-present batch): smoothness by force. Also possible later:
+coarse quantisation (K prototypes) and paraphrase views.
+
+## 2026-09-05 — EXP-053 (text only when stats are missing): day-0 gain GONE; the stats batches are where text learns
+
+HOB val expert (EXP-033 / EXP-051 in brackets): none **.5384** (.5387 /
+.5509), week1 .6739 (.6801 / .6732), full .6832 (.6855 / .6780), MSH full
+.6938 (.6955 / .6945). Bars: week1/full ✓ (within noise of 033), none ✗ —
+the whole +1.2 evaporated. Reading: confining the text block to the 25% of
+batches that have no stats starves it. In 050/051 the text dims sit next to
+the stats on every batch, and the shared card MLP learns text↔strength
+alignment with the stats as teacher; that alignment is what transfers to an
+unseen set at day 0. The aux head alone (present every step in 053) did not
+substitute for it. So the design must keep text in every batch and stop the
+id from being memorisable instead — EXP-055 revised to EXP-051 + text_noise
+1.0 (was 053 + noise; the queued chain reads the config at start). EXP-054
+(random-vector control) unchanged: it tells whether the +1.2 was semantic.
+EXP-052 (051 + text_dropout .1) at step 13k reads .5498 / .6749 / .6799 —
+051-like; whole-block dropout is not the fix either, as predicted.
+- **EXP-052 done** (051 + text_dropout .1): none .5497 (+1.1 vs 033), week1
+  .6764 (−0.4), full .6799 (−0.6), MSH .6967 (+0.1). Best text run so far on
+  the combined bars — whole-block dropout does trim the stats-mode loss
+  (051 −0.7 → −0.4/−0.6) but not to within 0.2. Ledger of the text series,
+  HOB expert (none / week1 / full): 033 .5387/.6801/.6855 · 050
+  .5513/.6686/.6737 · 051 .5509/.6732/.6780 · 052 .5497/.6764/.6799 · 053
+  .5384/.6739/.6832. Every always-on-text run pays ~0.5–1.2 with stats on
+  the holdout; 054/055 running.
+
+## 2026-09-05 — EXP-055 PROMOTES: text + aux head + embedding noise beats EXP-033 on every HOB mode; the control shows identity was the whole problem
+
+HOB val expert top-1 (EXP-033 in brackets), MSH full = in-corpus guard:
+
+| | none | week1 | full | MSH full |
+|---|---|---|---|---|
+| EXP-054 random-id control (= 050, random unit vectors) | .5043 (−3.4) | .6542 (−2.6) | .6589 (−2.7) | .6945 (−0.1) |
+| EXP-055 = 051 + text_noise 1.0 | **.5650 (+2.6)** | **.6861 (+0.6)** | **.6898 (+0.4)** | .6965 (+0.1) |
+
+The control: with a fixed random unit vector per card the trunk fits the
+corpus exactly as well (MSH unchanged) and loses ~3 pts on every mode of the
+never-seen set — a 768-d block is used as a card id, and an unseen id is
+out-of-distribution noise at inference. Real text (050) is that same id
+damage partly bought back by semantics (+1.3 at day 0, −1.2 with stats).
+Noise removes the id and keeps the semantics: 055 is +1.4 over 051 at day
+0 and turns the stats-mode losses into gains. Bars: none ≥ +0.5 ✓ (+2.6),
+week1/full within 0.2 ✓ (both positive), MSH ≥ .6955 ✓. Watchdogs: ECE
+.049 at day 0 (033 .013, 050 .075 — better, still over-confident), rare-take
+1.54× (≈ 033), colours 2.16/2.32/2.30 vs human 2.31, skill-gap at day 0
+−.002 vs −.0085. The probe's "+2 realistic, +4 optimistic" landed at +2.6.
+P3.T5c lever CONFIRMED; **EXP-055 is the trunk candidate to replace EXP-033**
+pending (a) the fixture easy tier, (b) the HOB fine-tune path (EXP-058), (c)
+the deck side (EXP-139). Overnight chain (owner directive "keep probing"):
+EXP-058 HOB full-FT from 055 (bar: ≥ EXP-036 .7100) → EXP-056 noise 2.0 →
+EXP-059 = 050 + noise 1.0 (no aux: is the head needed once noise is in?) →
+EXP-057 noise 0.5. Text series ledger (none / week1 / full): 033
+.5387/.6801/.6855 · 050 .5513/.6686/.6737 · 051 .5509/.6732/.6780 · 052
+.5497/.6764/.6799 · 053 .5384/.6739/.6832 · 054 .5043/.6542/.6589 · **055
+.5650/.6861/.6898**.
+- **Fixture suite (Phase-3 gate condition 4 analogue), MSH scenarios:** with
+  full stats both trunks pass 17/17. In day-0 mode EXP-033 fails 4
+  (easy-best-common-p1p2, easy-common-over-trap-mythic,
+  medium-fixing-for-splash, medium-second-color-commit); **EXP-055 passes
+  17/17** — the failures were card-reading cases. Precondition (a) for the
+  production swap met; (b) EXP-058 and the overnight sweep in flight.
+- **EXP-058 done (28 min, early stop epoch 9):** HOB full fine-tune from the
+  EXP-055 text trunk — val top-1 **0.6957 / expert 0.7133** vs EXP-036 (from
+  EXP-033) 0.6905 / 0.7100: +0.5 / +0.33, NLL .796 vs .809, ECE .009.
+  Precondition (b) met: the production path keeps the text trunk's gain.
+  New best drafter on any set. Production swap (HUD / bundle / onboard-set
+  defaults) deferred to the morning: pick the best of 055/056/057/059 once
+  the noise sweep lands, then swap once — and add a clear failure when a
+  text-trained trunk meets a set with no text block and no encoder
+  installed (day-0 on the laptop without the [text] extra).
+
+## 2026-09-06 — Noise sweep: more noise is better up to 2.0; the aux head is redundant once noise is in
+
+HOB val expert (none / week1 / full), MSH full; EXP-055 = σ 1.0 + aux:
+
+| | none | week1 | full | MSH full | day-0 ECE |
+|---|---|---|---|---|---|
+| EXP-057 σ 0.5 + aux | .5593 | .6823 | .6857 | .6977 | .062 |
+| EXP-055 σ 1.0 + aux | .5650 | .6861 | .6898 | .6965 | .049 |
+| EXP-059 σ 1.0, no aux | .5678 | .6861 | .6888 | .6963 | .052 |
+| **EXP-056 σ 2.0 + aux** | **.5675** | **.6869** | **.6930** | .6965 | **.029** |
+
+σ 0.5 loses 0.6 at day 0 vs 1.0; 2.0 gains +0.25 / +0.1 / +0.3 over 1.0 —
+under the +0.5 promote bar, so a tie by the rule, but monotone on every
+mode and day-0 ECE halves (.049 → .029; EXP-033 .013). Dropping the aux head
+at σ 1.0 changes nothing (059 ≈ 055): the head was a second route to the same
+smoothness and noise makes it redundant. Two flat probes toward the plateau
+rule (3 × < 0.3); one more on the noise axis: **EXP-060 = 056 + σ 4.0**,
+launched now (machine idle). Production pick after it: the best of 056/060.
+- **EXP-060 (σ 4.0):** none .5626 (−0.5 vs 056), week1 .6896 (+0.3), full
+  .6942 (+0.1), MSH .6935 (−0.3); day-0 ECE .014 (= EXP-033's). Third probe
+  under 0.3 on the composite → **noise axis at plateau** (P3.T5 rule).
+  **Production trunk = EXP-056** (σ 2.0 + aux): best day-0 of the series,
+  tie elsewhere, MSH held. Swapping HUD / bundle / onboard-set defaults now;
+  EXP-033 stays in the bundle as the no-text fallback.
+
+## 2026-09-06 — PRODUCTION SWAP: EXP-056 is the draft trunk (HUD default, bundle default, onboard-set --base)
+
+`PROD_DRAFT_MODELS` → checkpoints/EXP-056; bundle defaults lead with EXP-056
+and keep EXP-033 as the no-text fallback; `onboard_set --base` default was
+still EXP-030 (!) and is now EXP-056, and the generated fine-tune config
+inherits `text_features` / `text_when` from the base checkpoint (without
+that a fine-tune from a text trunk would build a 771-column table against a
+1,539-column trunk). README, DECKBUILDER_HANDOFF and PLAN P3.T5 updated.
+Deployment note: a text trunk needs `features.text.bge-base.parquet` for the
+set — the bundle ships it; day-0 onboarding builds it only with the [text]
+extra installed, otherwise `TextBlockUnavailable` says what to do (or use
+EXP-033). Deck side untouched (EXP-126/116/135); EXP-139 = the same lever
+for the deck trunk is the next proposal.

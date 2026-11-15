@@ -1,6 +1,6 @@
 """Build the laptop deployment bundle (owner workflow, 2026-07-31).
 
-`python -m draftbot.bundle --set MSH [--set EOE ...] [--checkpoints EXP-033 ...]`
+`python -m draftbot.bundle --set MSH [--set EOE ...] [--checkpoints EXP-056 ...]`
 
 Packs everything a machine needs to RUN the models — checkpoints (without
 last.pt resume state), per-set card tables / static features / deck tables /
@@ -17,9 +17,13 @@ import sys
 import tarfile
 from pathlib import Path
 
-# Production set as of 2026-07-31 (journal: probe series closed):
-# draft advisor, deck lock-and-rebuild, deck trunk, deck MSH fine-tune.
-DEFAULT_CHECKPOINTS = ["EXP-033", "EXP-116", "EXP-126", "EXP-127"]
+from draftbot.data.cards import DAY0_MARKER, SOURCES_JSON
+
+# Production set as of 2026-09-06: text-trunk draft advisor (EXP-056) with
+# the no-text EXP-033 as fallback, deck lock-and-rebuild, deck trunk, deck
+# MSH fine-tune, joint draft+sealed trunk (P5.S joint). Set-specific
+# fine-tunes (e.g. EXP-058 / EXP-138 for HOB) are added with --checkpoints.
+DEFAULT_CHECKPOINTS = ["EXP-056", "EXP-033", "EXP-116", "EXP-126", "EXP-127", "EXP-135"]
 BUNDLE = Path("laptop-bundle.tar.gz")
 
 
@@ -39,6 +43,14 @@ def bundle_paths(set_codes: list[str], checkpoints: list[str]) -> list[Path]:
             paths.append(proc / name)
         if (proc / "decks.parquet").exists():  # absent pre-extraction is fine
             paths.append(proc / "decks.parquet")
+        # oracle-text blocks (+ sha sidecars): the laptop needs no encoder
+        paths += sorted(p for p in proc.glob("features.text.*") if p.is_file())
+        # Day-0 sets carry two more files: sources.json names the bonus sheets
+        # (the target machine's grpId bridge and art map both read it), and the
+        # .day0 marker keeps the vocab flagged provisional over there too.
+        for name in (SOURCES_JSON, DAY0_MARKER):
+            if (proc / name).exists():
+                paths.append(proc / name)
         splits = Path("data/splits") / f"{code}.json"
         if splits.exists():
             paths.append(splits)

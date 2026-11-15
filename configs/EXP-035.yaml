@@ -1,0 +1,28 @@
+# EXP-035: P3.T5 lever 2 — CURATION STRENGTH (journal 2026-09-05). Owner:
+# "17lands players are mostly self-selecting good players, so we only need
+# to reject the bottom of the barrel." The 0.54/50 filter rejects the BOTTOM
+# HALF of that population (median drafter ≈ .54; keeps 48%). This cut keeps
+# 87% of drafts with skill metadata (win rate ≥ .46, ≥ 10 games); soft
+# importance weighting stays. Identical to EXP-034 otherwise (same 40k cap:
+# equal-volume test). Compare to EXP-034 on HOB val, all modes.
+exp: EXP-035
+corpus: configs/corpus/pretrain_v2.yaml
+track_set: HOB
+select_on: [none, week1]   # two-axis selection (journal 2026-09-05)
+seed: 17
+batch_drafts: 64
+total_steps: 60000
+emb_dim: 256
+layers: 8
+heads: 8
+dropout: 0.1
+stat_dropout: 0.25
+label_smoothing: 0.05
+skill_filter:
+  min_win_rate: 0.46
+  min_games: 10
+peak_lr: 2.0e-4
+lr_warmup: 1000
+weight_decay: 0.01
+grad_clip: 1.0
+eval_every: 2000
