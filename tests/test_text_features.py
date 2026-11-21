@@ -140,3 +140,18 @@ def test_strength_prior_block_is_composite_and_not_a_text_column(tmp_path, monke
     import pytest
     with pytest.raises(tf.TextBlockUnavailable):
         tf.load_text_features("ZZZ", "prior:NOPE")
+
+
+def test_live_stats_maps_endpoint_rows_and_keeps_missing_as_nan():
+    from draftbot.data.live_stats import to_snapshot
+    rows = [{"name": "Alpha // Beta", "seen_count": 900, "avg_seen": 3.5, "pick_count": 150,
+             "avg_pick": None, "game_count": 700, "win_rate": 0.55,
+             "ever_drawn_game_count": 300, "ever_drawn_win_rate": None}]
+    cols = ["seen_count", "avg_seen", "pick_count", "avg_pick", "game_count", "game_win_rate",
+            "ever_drawn_count", "ever_drawn_win_rate", "game_win_rate_WU"]
+    snap = to_snapshot(rows, ["Alpha", "Island"], cols)
+    assert list(snap.columns)[:len(cols)] == cols
+    a = snap.loc["alpha"]
+    assert a["avg_seen"] == 3.5 and a["game_win_rate"] == 0.55 and a["ever_drawn_count"] == 300
+    assert pd.isna(a["avg_pick"]) and pd.isna(a["ever_drawn_win_rate"]) and pd.isna(a["game_win_rate_WU"])
+    assert snap.loc["island"].isna().all()  # not in the endpoint: fully masked

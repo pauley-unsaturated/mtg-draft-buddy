@@ -116,7 +116,15 @@ uv run python -m draftbot.hud --ui window --stats none
 ```
 
 Statistics are all missing, which is a condition the trunk was trained under
-(stat dropout). These artifacts are provisional (a `.day0` marker) and are
+(stat dropout). A few days after release, pull 17lands' live card ratings as
+provisional stats (partial: pick-order for most cards, win rates for the
+well-played commons and uncommons) and drop `--stats none`:
+
+```bash
+uv run python -m draftbot.data.live_stats --set HOB    # re-run any time to refresh
+uv run python -m draftbot.hud --ui window
+```
+ These artifacts are provisional (a `.day0` marker) and are
 rebuilt with final card ids once 17lands publishes.
 
 ### When 17lands publishes the set

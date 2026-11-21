@@ -164,7 +164,9 @@ def _discard_day0_artifacts(set_code: str) -> None:
     if reg.exists():
         for fname in set(json.loads(reg.read_text()).values()):
             start, _, end = Path(fname).stem.partition("_")
-            if start == end:  # day-0 placeholder: an empty [release, release] window
+            # day-0 placeholder (an empty [release, release] window) or a
+            # provisional live-ratings snapshot (data/live_stats.py)
+            if start == end or fname.endswith(".live.parquet"):
                 (reg.parent / fname).unlink(missing_ok=True)
         reg.unlink()
 

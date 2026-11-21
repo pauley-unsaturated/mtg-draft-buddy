@@ -162,7 +162,8 @@ def build_statless_snapshot(set_code: str) -> pd.DataFrame:
     out_path = out_dir / f"{rel}_{rel}.parquet"  # empty window = no data yet
     snap.to_parquet(out_path)
     _registry_path(set_code).write_text(
-        json.dumps({"full": out_path.name, "week1": out_path.name}, indent=2))
+        json.dumps({"full": out_path.name, "week1": out_path.name,
+                    "day0": out_path.name}, indent=2))  # day0: survives live_stats
     return snap
 
 

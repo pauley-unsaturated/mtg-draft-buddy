@@ -1711,3 +1711,35 @@ cannot rebuild TRK's prior after 17lands publishes — onboard on the mini and
 re-bundle.
 
 Next measurement: EXP-064 true zero-shot on TRK when 17lands publishes.
+
+### 2026-11-21 — Live 17lands ratings as provisional TRK stats (owner: "grab the current stats")
+
+The public dataset is not out (S3 probe: none). The anonymous card-ratings
+endpoint is: it ignores date and colour filters, serves one recent window
+(TRK: 516k sightings, ~10% of a typical week-1 volume), and withholds ALSA/ATA
+below 200 samples and every win rate below 500 games. TRK today: ALSA 266 of
+336 cards, ATA 157, GP WR 195, GIH WR 112 (commons and uncommons only; no rare
+or mythic has a win rate). The 2026-07-28 note "the API stopped serving win
+rates" was these thresholds on old sets with thin recent windows.
+
+- **Does a snapshot that patchy help?** Simulated on the two sets EXP-063 never
+  saw: week-1 snapshot, counts × 0.1, win rates binomially resampled at the
+  reduced count, same thresholds, all deck-colour columns missing. Coverage
+  matches TRK's (FRA: ALSA 261, ATA 194, GP 189, GIH 111 of 295). Val expert
+  top-1, none → simulated-live → real week 1:
+  HOB .5820 → **.6464** → .6876; FRA .5444 → **.6201** → .6703. About 60% of the
+  day-0 → week-1 gap; rare-take ratio 1.07 on both. Diagnostic scorecards in
+  `docs/scorecards/live_sim/` (not leaderboard rows: simulated input).
+- **`draftbot.data.live_stats --set <CODE>`**: one request, raw response kept
+  under `data/raw/17lands_api/`, snapshot `<release>_<stamp>.live.parquet`
+  registered as `week1` / `full` / `live`; day-0 sets only; discarded with the
+  other provisional artifacts at onboarding. The all-NaN snapshot stays under
+  tag `day0` (day-0 tests now read that tag).
+- **Quarantine**: inference-side only. TRK stats enter no corpus, scaler or
+  selection. TRK's eventual zero-shot `none` number is unaffected; its `week1`
+  number will come from the real dataset snapshot.
+- **First real look at the text prior on TRK**: predicted vs measured GIH rho
+  .436 on the 112 cards that have one (commons/uncommons only, so a
+  range-restricted sample — not comparable with the all-rarity .55); predicted
+  vs measured ALSA rho .768 on 266.
+- Bundle rebuilt with the live snapshot.

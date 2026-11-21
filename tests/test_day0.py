@@ -119,11 +119,18 @@ def test_static_features_match_a_normally_onboarded_set(cards):
     assert len(day0) == len(cards)
 
 
+def _statless_tag() -> str:
+    """The all-NaN day-0 snapshot. Once `data.live_stats` has registered
+    provisional live ratings under `full`/`week1`, it stays under `day0`."""
+    reg = json.loads((Path("data/snapshots") / CODE / "registry.json").read_text())
+    return "day0" if "day0" in reg else "full"
+
+
 @needs_day0
 def test_snapshot_is_all_nan_over_the_real_stat_layout(cards):
     from draftbot.data.features import load_snapshot
 
-    snap = load_snapshot(CODE, "full")
+    snap = load_snapshot(CODE, _statless_tag())
     assert list(snap.columns) == list(load_snapshot("MSH", "full").columns)
     assert snap.isna().all().all(), "day-0 stats must be missing, never zero"
     assert len(snap) == len(cards)
@@ -145,7 +152,7 @@ def test_day0_stats_present_as_masked_not_as_zero_winrate():
     from draftbot.data.features import assemble, load_scaler
 
     scaler = load_scaler(Path("checkpoints/EXP-033/scaler.json"))
-    feats, _ = assemble(CODE, "full", scaler=scaler)
+    feats, _ = assemble(CODE, _statless_tag(), scaler=scaler)
     masks = [c for c in feats.columns if c.endswith("__miss")]
     assert masks, "stat block missing entirely"
     assert (feats[masks] == 1.0).all().all()
@@ -236,3 +243,19 @@ def test_discover_sources_keeps_only_masterpiece_children(monkeypatch):
                         lambda db=None: {"HOB": 193, "HOC": 104, "HOX": 30})
     assert day0.discover_sources("HOB") == ["HOB", "HOX"]   # HOC: eternal; HOY: not on Arena
     assert day0.discover_sources("HOB", extra=["HOC"]) == ["HOB", "HOX", "HOC"]  # manual override
+
+
+@needs_day0
+def test_live_snapshot_keeps_the_layout_and_masks_what_is_missing():
+    """Provisional live ratings (data.live_stats) fill overall columns only;
+    everything the endpoint withholds must stay NaN, never zero."""
+    from draftbot.data.features import load_snapshot
+
+    reg = json.loads((Path("data/snapshots") / CODE / "registry.json").read_text())
+    if "live" not in reg:
+        pytest.skip("no live snapshot registered")
+    snap = load_snapshot(CODE, "live")
+    assert list(snap.columns) == list(load_snapshot("MSH", "full").columns)
+    assert snap[[c for c in snap.columns if c.endswith("_WU")]].isna().all().all()
+    wr = snap["ever_drawn_win_rate"].dropna()
+    assert len(wr) and wr.between(0.2, 0.9).all()
